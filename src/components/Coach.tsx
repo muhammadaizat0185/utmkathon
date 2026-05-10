@@ -419,9 +419,18 @@ export function Coach() {
   ]
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-lg mx-auto overflow-hidden bg-slate-50/50 dark:bg-background z-50">
+    <div className="fixed inset-0 flex flex-col max-w-lg mx-auto overflow-hidden bg-black z-50">
+      <video 
+        autoPlay 
+        loop 
+        muted 
+        playsInline 
+        className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 pointer-events-none"
+      >
+        <source src="/assets/IMG_2531.MP4" type="video/mp4" />
+      </video>
       {/* Top Header */}
-      <header className="p-4 bg-background/80 backdrop-blur-md border-b border-border shadow-sm z-20 shrink-0">
+      <header className="p-4 bg-black/40 backdrop-blur-xl border-b border-white/10 shadow-sm z-20 shrink-0">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Link
@@ -450,7 +459,7 @@ export function Coach() {
       {/* Chat Area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 scroll-smooth bg-transparent"
+        className="flex-1 overflow-y-auto px-4 scroll-smooth bg-transparent z-10"
       >
         <div className="space-y-6 py-6 min-h-full flex flex-col">
 
