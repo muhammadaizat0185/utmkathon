@@ -3,6 +3,7 @@
 import { Bill, useStore } from "@/store/useStore"
 import { t } from "@/lib/translations"
 import { motion } from "framer-motion"
+import { BILL_TEMPLATES } from "@/lib/billTemplates"
 import { 
   Lock, 
   Unlock, 
@@ -75,16 +76,21 @@ export function BillCard({ bill, onEdit }: BillCardProps) {
           <div className="flex justify-between items-start">
             <div className="flex gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-xl shadow-inner">
-                {bill.category === 'Housing' ? '🏠' : 
-                 bill.category === 'Utilities' ? '📱' : 
-                 bill.category === 'Education' ? '🎓' : 
-                 bill.category === 'Entertainment' ? '📺' : '🧾'}
+                {BILL_TEMPLATES.find(t => t.category === bill.category)?.icon || '🧾'}
               </div>
               <div>
                 <h3 className="text-sm font-black text-white">{bill.name}</h3>
-                <p className="text-[9px] text-white/50 uppercase font-black tracking-widest leading-tight">
-                  {bill.category} {bill.accountNumber && `• ${maskAccountNumber(bill.accountNumber)}`}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[9px] text-white/50 uppercase font-black tracking-widest leading-tight">
+                    {bill.category} {bill.accountNumber && `• ${maskAccountNumber(bill.accountNumber)}`}
+                  </p>
+                  {bill.mode === 'auto_track' && (
+                    <Badge variant="outline" className="text-[7px] px-1 py-0 border-primary/30 text-primary uppercase font-black bg-primary/5">Auto-Track</Badge>
+                  )}
+                  {bill.mode === 'budget_lock' && (
+                    <Badge variant="outline" className="text-[7px] px-1 py-0 border-amber-500/30 text-amber-500 uppercase font-black bg-amber-500/5">Budget Lock</Badge>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -123,10 +129,15 @@ export function BillCard({ bill, onEdit }: BillCardProps) {
                 </p>
               )}
             </div>
-            <Badge variant="outline" className={`rounded-lg border-transparent px-2 py-1 text-[10px] font-black uppercase flex gap-1 ${status.color.replace('text-emerald-600', 'text-emerald-400').replace('text-amber-600', 'text-amber-400').replace('text-rose-600', 'text-rose-400').replace('text-blue-600', 'text-blue-400')}`}>
-              <StatusIcon className="w-3 h-3" />
-              {status.label}
-            </Badge>
+            <div className="flex flex-col items-end gap-1.5">
+              <Badge variant="outline" className={`rounded-lg border-transparent px-2 py-1 text-[10px] font-black uppercase flex gap-1 ${status.color.replace('text-emerald-600', 'text-emerald-400').replace('text-amber-600', 'text-amber-400').replace('text-rose-600', 'text-rose-400').replace('text-blue-600', 'text-blue-400')}`}>
+                <StatusIcon className="w-3 h-3" />
+                {status.label}
+              </Badge>
+              {bill.mode === 'simulated_autopay' && bill.autopayEnabled && (
+                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-tighter">AutoPay Ready</span>
+              )}
+            </div>
           </div>
 
           {/* Bottom Row: Actions */}

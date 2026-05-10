@@ -352,7 +352,7 @@ export const t: Translations = {
 
     // Bills Feature
     billsHeader: "Bills & Commitments",
-    billsSubheader: "Protect your essentials before you spend.",
+    billsSubheader: "Protect your essentials",
     billsProtected: "Protected",
     billsNext: "Next Bill",
     billsAutoPay: "AutoPay",
@@ -543,7 +543,7 @@ export const t: Translations = {
 
     // Bills Feature
     billsHeader: "Bil & Komitmen",
-    billsSubheader: "Lindungi keperluan utama sebelum anda belanja.",
+    billsSubheader: "Lindungi keperluan utama",
     billsProtected: "Dilindungi",
     billsNext: "Bil Seterusnya",
     billsAutoPay: "AutoPay",

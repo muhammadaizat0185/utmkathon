@@ -237,7 +237,7 @@ export default function SetupPage() {
         autopayEnabled: false,
         autopaySafety: 'balanced' as const,
         reminderDaysBefore: 3,
-        status: 'upcoming' as const,
+        status: 'needs_setup' as const,
         source: 'onboarding' as const,
         createdAt: new Date().toISOString()
       }));

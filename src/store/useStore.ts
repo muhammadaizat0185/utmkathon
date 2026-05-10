@@ -46,36 +46,99 @@ export type BillStatus =
 
 export type AutoPaySafety = "strict" | "balanced" | "flexible";
 
+export type BillMode =
+  | "simulated_autopay"
+  | "auto_track"
+  | "budget_lock"
+  | "protected_only";
+
+export type BillCategory =
+  | "rent"
+  | "phone"
+  | "ptptn"
+  | "internet"
+  | "streaming"
+  | "transport"
+  | "petrol"
+  | "custom";
+
+export type BillPaymentRail =
+  | "bank_transfer"
+  | "duitnow"
+  | "jompay"
+  | "provider_account"
+  | "card_subscription"
+  | "ewallet"
+  | "budget_only"
+  | "none";
+
 export interface BillPaymentRecord {
   id: string;
   billId: string;
   amount: number;
   paidAt: string;
-  method: "manual" | "autopay";
-  status: "paid" | "failed";
+  method: "manual" | "autopay" | "auto_track";
+  status: "paid" | "failed" | "paused";
   transactionId?: string;
 }
 
 export interface Bill {
   id: string;
   name: string;
-  category: string;
-  provider?: string;
-  accountNumber?: string;
-  referenceNumber?: string;
+  category: BillCategory;
   amount: number;
   dueDay?: number;
   dueDate?: string;
   nextDueDate: string;
   frequency: BillFrequency;
+
   isLocked: boolean;
+  mode: BillMode;
+  paymentRail: BillPaymentRail;
+
   autopayEnabled: boolean;
+  autoTrackEnabled?: boolean;
   autopaySafety: AutoPaySafety;
+
   reminderDaysBefore: number;
   status: BillStatus;
+  source: "onboarding" | "manual" | "detected";
+
+  // Provider details
+  provider?: string;
+  serviceName?: string;
+  productType?: string;
+
+  // Payment details (masked)
+  recipientName?: string;
+  bankName?: string;
+  accountNumber?: string; // used for bank or provider
+  referenceNumber?: string; // general reference
+
+  duitNowIdType?: "mobile" | "nric" | "passport" | "army_police" | "brn";
+  duitNowId?: string;
+
+  billerCode?: string;
+  ref1?: string;
+  ref2?: string;
+
+  // Subscription / Auto-track details
+  accountEmail?: string;
+  planName?: string;
+  paymentSourceLabel?: string;
+  cardLast4?: string;
+
+  // Transport details
+  passType?: string;
+  tngCardNickname?: string;
+  tngCardLast4?: string;
+  tngWalletPhone?: string;
+
+  // Petrol details
+  vehicleLabel?: string;
+
   lastPaidAt?: string;
   paymentHistory?: BillPaymentRecord[];
-  source: "onboarding" | "manual" | "detected";
   createdAt: string;
   updatedAt?: string;
 }
@@ -469,19 +532,51 @@ const useStoreBase = create<ResilienceState>()(
       setLanguage: (lang) => set({ language: lang }),
 
       // Bills Actions
-      addBill: (b) => set((state) => ({ bills: [...state.bills, b] })),
-      updateBill: (id, updates) => set((state) => ({
-        bills: state.bills.map(b => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b)
-      })),
-      deleteBill: (id) => set((state) => ({
-        bills: state.bills.filter(b => b.id !== id)
-      })),
-      toggleBillLock: (id) => set((state) => ({
-        bills: state.bills.map(b => b.id === id ? { ...b, isLocked: !b.isLocked } : b)
-      })),
-      toggleBillAutopay: (id) => set((state) => ({
-        bills: state.bills.map(b => b.id === id ? { ...b, autopayEnabled: !b.autopayEnabled } : b)
-      })),
+      addBill: (b) => {
+        set((state) => {
+          const nextBills = [...state.bills, b];
+          const totalCommitments = nextBills.reduce((sum, bill) => sum + bill.amount, 0);
+          return { 
+            bills: nextBills,
+            user: { ...state.user, totalCommitments }
+          };
+        });
+        get().updateResilienceScore();
+      },
+      updateBill: (id, updates) => {
+        set((state) => {
+          const nextBills = state.bills.map(b => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b);
+          const totalCommitments = nextBills.reduce((sum, bill) => sum + bill.amount, 0);
+          return { 
+            bills: nextBills,
+            user: { ...state.user, totalCommitments }
+          };
+        });
+        get().updateResilienceScore();
+      },
+      deleteBill: (id) => {
+        set((state) => {
+          const nextBills = state.bills.filter(b => b.id !== id);
+          const totalCommitments = nextBills.reduce((sum, bill) => sum + bill.amount, 0);
+          return { 
+            bills: nextBills,
+            user: { ...state.user, totalCommitments }
+          };
+        });
+        get().updateResilienceScore();
+      },
+      toggleBillLock: (id) => {
+        set((state) => ({
+          bills: state.bills.map(b => b.id === id ? { ...b, isLocked: !b.isLocked } : b)
+        }));
+        get().updateResilienceScore();
+      },
+      toggleBillAutopay: (id) => {
+        set((state) => ({
+          bills: state.bills.map(b => b.id === id ? { ...b, autopayEnabled: !b.autopayEnabled } : b)
+        }));
+        get().updateResilienceScore();
+      },
       payBillNow: (id) => {
         const state = get();
         const bill = state.bills.find(b => b.id === id);
