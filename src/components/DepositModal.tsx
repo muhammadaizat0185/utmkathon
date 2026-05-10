@@ -20,16 +20,26 @@ interface DepositModalProps {
 }
 
 export function DepositModal({ isOpen, onClose, pocket }: DepositModalProps) {
-  const { addFundsToPocket, language } = useStore()
+  const { addFundsToPocket, language, calculateDailyLimitForBalance, user } = useStore()
   const strings = t[language]
   
   const [amount, setAmount] = useState("")
+
+  const parsedAmount = parseFloat(amount) || 0
+  const showBanner = parsedAmount > 0 && pocket !== null
+
+  let safeDailyBefore = 0
+  let safeDailyAfter = 0
+  if (showBanner && pocket) {
+    safeDailyBefore = calculateDailyLimitForBalance(user.currentBalance)
+    safeDailyAfter = calculateDailyLimitForBalance(user.currentBalance - parsedAmount)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!pocket) return
     
-    addFundsToPocket(pocket.id, parseFloat(amount))
+    addFundsToPocket(pocket.id, parsedAmount)
     setAmount("")
     onClose()
   }
@@ -72,6 +82,23 @@ export function DepositModal({ isOpen, onClose, pocket }: DepositModalProps) {
               </button>
             ))}
           </div>
+
+          {showBanner && (
+            <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[10px] leading-relaxed space-y-1 animate-fadeIn">
+              <p className="font-bold text-purple-400 flex items-center gap-1">
+                ⚠️ Daily Spend Plan Impact
+              </p>
+              <p className="text-muted-foreground">
+                Saving RM {parsedAmount.toFixed(2)} to {pocket.name} reduces your spendable wallet balance from RM {user.currentBalance.toFixed(2)} to RM {(user.currentBalance - parsedAmount).toFixed(2)}.
+              </p>
+              <p className="text-muted-foreground">
+                This will adjust your daily safe spending limit from <span className="font-bold text-primary">RM {safeDailyBefore.toFixed(2)}/day</span> to <span className="font-bold text-amber-400">RM {safeDailyAfter.toFixed(2)}/day</span>.
+              </p>
+              <p className="font-semibold text-emerald-400">
+                ✨ Your Resilience Score remains fully protected since savings count as assets!
+              </p>
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <Button 

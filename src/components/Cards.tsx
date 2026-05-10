@@ -11,6 +11,9 @@ import { useStore } from "@/store/useStore"
 
 export function Cards() {
   const { user } = useStore()
+  const cardHolderName = (user?.name || "Aiman").toUpperCase()
+  const cardLastFour = user?.cardLastFour || "4292"
+
   const [isDetailsVisible, setIsDetailsVisible] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [password, setPassword] = useState("")
@@ -31,7 +34,7 @@ export function Cards() {
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText("4242881299014292")
+    navigator.clipboard.writeText(`424288129901${cardLastFour}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -122,10 +125,10 @@ export function Cards() {
             </div>
             <div className="grid grid-cols-3 gap-2">
               {["1000", "5000", "10000"].map((amount) => (
-                <Button 
-                  key={amount} 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  key={amount}
+                  variant="outline"
+                  size="sm"
                   className={`text-[10px] h-8 ${spendingLimit === amount ? 'border-primary bg-primary/5 text-primary' : ''}`}
                   onClick={() => setSpendingLimit(amount)}
                 >
@@ -142,7 +145,7 @@ export function Cards() {
       </Dialog>
 
       {/* Main Card Display */}
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="relative group perspective-1000"
@@ -151,26 +154,31 @@ export function Cards() {
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full -ml-10 -mb-10 blur-2xl" />
-          
+
           <div className="relative h-full flex flex-col justify-between">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <p className="text-[10px] opacity-70 uppercase tracking-widest font-bold">Virtual Card</p>
                 <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
-                  <p className="text-lg font-bold">GXbank card</p>
+                  <Zap className="w-4 h-4 text-amber-300 fill-amber-300 animate-pulse" />
+                  <p className="text-lg font-extrabold">GX Card Platinum</p>
                 </div>
               </div>
-              <h1 className="text-xl font-black tracking-tight" style={{
-                background: "linear-gradient(135deg, #FFFFFF 0%, rgba(255,255,255,0.85) 50%, rgba(139,92,246,0.6) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                textShadow: "none",
-                filter: "drop-shadow(0 0 20px rgba(139,92,246,0.2))"
-              }}>
-                GX Youth
-              </h1>
+              <div className="flex items-center justify-center">
+                <h1
+                  className="text-2xl font-black tracking-tight"
+                  style={{
+                    background: "linear-gradient(135deg, #FFFFFF 0%, rgba(255,255,255,0.85) 50%, rgba(139,92,246,0.6) 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    textShadow: "none",
+                    filter: "drop-shadow(0 0 20px rgba(139,92,246,0.2))"
+                  }}
+                >
+                  GX Youth
+                </h1>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -181,20 +189,20 @@ export function Cards() {
                       <span className="text-xl font-mono">4242</span>
                       <span className="text-xl font-mono">8812</span>
                       <span className="text-xl font-mono">9901</span>
-                      <span className="text-xl font-mono">4292</span>
+                      <span className="text-xl font-mono">{cardLastFour}</span>
                     </>
                   ) : (
                     <>
                       <span className="text-xl font-mono tracking-[0.2em]">••••</span>
                       <span className="text-xl font-mono tracking-[0.2em]">••••</span>
                       <span className="text-xl font-mono tracking-[0.2em]">••••</span>
-                      <span className="text-xl font-mono">4292</span>
+                      <span className="text-xl font-mono">{cardLastFour}</span>
                     </>
                   )}
                 </div>
                 <div className="flex gap-2">
                   {isDetailsVisible && (
-                    <button 
+                    <button
                       onClick={handleCopy}
                       className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                       title="Copy Card Number"
@@ -202,7 +210,7 @@ export function Cards() {
                       {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={toggleDetails}
                     className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                     title={isDetailsVisible ? "Hide Details" : "Show Details"}
@@ -211,11 +219,11 @@ export function Cards() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-[8px] opacity-70 uppercase tracking-tighter">Card Holder</p>
-                  <p className="text-sm font-medium uppercase tracking-wide">{user?.name || "MUHAMMAD HAZIQ"}</p>
+                  <p className="text-sm font-medium uppercase tracking-wide">{cardHolderName}</p>
                 </div>
                 <div className="flex gap-6">
                   <div className="text-right">
@@ -246,7 +254,7 @@ export function Cards() {
             </div>
           </CardContent>
         </Card>
-        <Card 
+        <Card
           className="glass-card cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-300 border-transparent hover:border-amber-500/30"
           onClick={() => setShowLimitDialog(true)}
         >

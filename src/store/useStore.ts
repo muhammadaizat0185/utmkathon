@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { useState, useEffect } from 'react';
 import { Language } from '@/lib/translations';
 import { calculateNextDueDate, isBillDue, isAutoPaySafe } from '@/lib/billEngine';
@@ -165,6 +166,7 @@ interface ResilienceState {
     runwayDuration?: number;
     runwayDurationUnit?: string;
     totalCommitments?: number;
+    cardLastFour?: string;
   };
   transactions: Transaction[];
   savingsPockets: SavingsPocket[];
@@ -198,6 +200,7 @@ interface ResilienceState {
   updateSavingsPocket: (id: string, updates: Partial<SavingsPocket>) => void;
   deleteSavingsPocket: (id: string) => void;
   addFundsToPocket: (id: string, amount: number) => void;
+  calculateDailyLimitForBalance: (balance: number) => number;
   toggleSpendGuard: () => void;
   toggleSurvivalMode: () => void;
   toggleAutoSave: () => void;
@@ -225,7 +228,59 @@ const RISK_RETURNS = {
   high: 0.065, // 6.5% p.a.
 };
 
-const initialStoreState = {
+function getDaysRemaining(state: any) {
+  if (state.user.incomeSource === "fixed" && state.user.fixedFrequency === "weekly" && state.user.weeklyPayDay) {
+    const daysMap: Record<string, number> = {
+      sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
+    };
+    const targetIndex = daysMap[state.user.weeklyPayDay.toLowerCase()] ?? 5;
+    const today = new Date();
+    const todayIndex = today.getDay();
+    let diff = targetIndex - todayIndex;
+    if (diff <= 0) diff += 7;
+    return diff;
+  }
+  if (!state.user.nextAllowanceDate) return 14;
+  const today = new Date();
+  const nextDate = new Date(state.user.nextAllowanceDate);
+  const diffTime = nextDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 30;
+}
+
+function calculateDailyLimit(state: any, updatedBalance: number, daysLeft: number) {
+  const totalCommitments = state.user.totalCommitments || 0;
+  let calculatedDaily = 15.0;
+
+  if (state.user.incomeSource === "fixed") {
+    if (state.user.fixedFrequency === "weekly") {
+      const weeklyCommitment = totalCommitments / 4;
+      const remainingBalance = Math.max(0, updatedBalance - weeklyCommitment);
+      calculatedDaily = daysLeft > 0 ? remainingBalance / daysLeft : remainingBalance;
+    } else {
+      const remainingBalance = Math.max(0, updatedBalance - totalCommitments);
+      calculatedDaily = daysLeft > 0 ? remainingBalance / daysLeft : remainingBalance;
+    }
+  } else {
+    // lump-sum / irregular / none
+    const start = state.user.lumpStartDate ? new Date(state.user.lumpStartDate) : (state.user.setupDate ? new Date(state.user.setupDate) : new Date());
+    const duration = state.user.durationDays || 30;
+    const end = new Date(start.getTime() + duration * 24 * 60 * 60 * 1000);
+    const today = new Date();
+    const diffTime = end.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const remainingDays = diffDays > 0 ? diffDays : duration;
+    const remainingMonths = remainingDays / 30;
+    const commitmentsForRemainingPeriod = totalCommitments * remainingMonths;
+    const remainingBalance = Math.max(0, updatedBalance - commitmentsForRemainingPeriod);
+    calculatedDaily = remainingBalance / remainingDays;
+  }
+
+  const flooredDaily = Math.floor(calculatedDaily * 100) / 100;
+  return flooredDaily > 0 ? flooredDaily : 15.0;
+}
+
+export const initialStoreState = {
   language: 'en' as Language,
   user: {
     name: 'Aiman',
@@ -236,6 +291,7 @@ const initialStoreState = {
     emergencyFundGoal: 500,
     currentEmergencyFund: 85,
     spendingPersonality: 'Food Overspender + Impulse Buyer',
+    cardLastFour: '4292',
   },
   transactions: [
     { id: '1', title: 'GrabFood', amount: 25.5, category: 'Food', date: "2026-05-09T05:00:00.000Z", type: 'expense' as const, confidence: 0.98 },
@@ -280,9 +336,10 @@ const initialStoreState = {
   hasNotificationSave: false,
 };
 
-// Raw store in-memory with zero local storage persistence to clean state on refresh
+// Persisted Zustand store using localStorage
 const useStoreBase = create<ResilienceState>()(
-  (set, get) => ({
+  persist(
+    (set, get) => ({
       ...initialStoreState,
       addTransaction: (t, skipRoundUp = false) => {
         set((state) => {
@@ -293,57 +350,8 @@ const useStoreBase = create<ResilienceState>()(
           
           // Recalculate and update initialSafeDaily if it is an income transaction (new money added)
           if (t.type === 'income') {
-             // Calculate days remaining
-             const getDaysRemainingInternal = () => {
-               if (state.user.incomeSource === "fixed" && state.user.fixedFrequency === "weekly" && state.user.weeklyPayDay) {
-                 const daysMap: Record<string, number> = {
-                   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
-                 };
-                 const targetIndex = daysMap[state.user.weeklyPayDay.toLowerCase()] ?? 5;
-                 const today = new Date();
-                 const todayIndex = today.getDay();
-                 let diff = targetIndex - todayIndex;
-                 if (diff <= 0) diff += 7;
-                 return diff;
-               }
-               if (!state.user.nextAllowanceDate) return 14;
-               const today = new Date();
-               const nextDate = new Date(state.user.nextAllowanceDate);
-               const diffTime = nextDate.getTime() - today.getTime();
-               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-               return diffDays > 0 ? diffDays : 30;
-             };
-
-             const daysLeft = getDaysRemainingInternal();
-             const totalCommitments = state.user.totalCommitments || 0;
-             let calculatedDaily = 15.0;
-
-             if (state.user.incomeSource === "fixed") {
-               if (state.user.fixedFrequency === "weekly") {
-                 const weeklyCommitment = totalCommitments / 4;
-                 const remainingBalance = Math.max(0, updatedBalance - weeklyCommitment);
-                 calculatedDaily = daysLeft > 0 ? remainingBalance / daysLeft : remainingBalance;
-               } else {
-                 const remainingBalance = Math.max(0, updatedBalance - totalCommitments);
-                 calculatedDaily = daysLeft > 0 ? remainingBalance / daysLeft : remainingBalance;
-               }
-             } else {
-               // lump-sum / irregular / none
-               const start = state.user.lumpStartDate ? new Date(state.user.lumpStartDate) : (state.user.setupDate ? new Date(state.user.setupDate) : new Date());
-               const duration = state.user.durationDays || 30;
-               const end = new Date(start.getTime() + duration * 24 * 60 * 60 * 1000);
-               const today = new Date();
-               const diffTime = end.getTime() - today.getTime();
-               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-               const remainingDays = diffDays > 0 ? diffDays : duration;
-               const remainingMonths = remainingDays / 30;
-               const commitmentsForRemainingPeriod = totalCommitments * remainingMonths;
-               const remainingBalance = Math.max(0, updatedBalance - commitmentsForRemainingPeriod);
-               calculatedDaily = remainingBalance / remainingDays;
-             }
-
-             const flooredDaily = Math.floor(calculatedDaily * 100) / 100;
-             nextInitialSafeDaily = flooredDaily > 0 ? flooredDaily : 15.0;
+             const daysLeft = getDaysRemaining(state);
+             nextInitialSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
           }
 
           return {
@@ -395,13 +403,31 @@ const useStoreBase = create<ResilienceState>()(
         get().updateResilienceScore();
       },
       addFundsToPocket: (id, amount) => {
-        set((state) => ({
-          savingsPockets: state.savingsPockets.map(p =>
+        set((state) => {
+          const daysLeft = getDaysRemaining(state);
+          const safeDailyBefore = calculateDailyLimit(state, state.user.currentBalance, daysLeft);
+          const safeDailyAfter = calculateDailyLimit(state, state.user.currentBalance - amount, daysLeft);
+
+          const nextPockets = state.savingsPockets.map(p =>
             p.id === id ? { ...p, current: p.current + amount } : p
-          ),
-          user: { ...state.user, currentBalance: state.user.currentBalance - amount }
-        }));
+          );
+          const pocketName = nextPockets.find(p => p.id === id)?.name || "pocket";
+
+          return {
+            savingsPockets: nextPockets,
+            user: { ...state.user, currentBalance: state.user.currentBalance - amount },
+            initialSafeDaily: safeDailyAfter,
+            pet: {
+              message: `Nice save! Moving RM ${amount.toFixed(2)} to ${pocketName}. This reduces your daily fund limit from RM ${safeDailyBefore.toFixed(2)}/day to RM ${safeDailyAfter.toFixed(2)}/day, but your Resilience Score is fully protected!`
+            }
+          };
+        });
         get().updateResilienceScore();
+      },
+      calculateDailyLimitForBalance: (balance) => {
+        const state = get();
+        const daysLeft = getDaysRemaining(state);
+        return calculateDailyLimit(state, balance, daysLeft);
       },
       toggleSpendGuard: () => set((state) => ({ isSpendGuardActive: !state.isSpendGuardActive })),
       toggleSurvivalMode: () => set((state) => ({ isSurvivalModeActive: !state.isSurvivalModeActive })),
@@ -512,8 +538,9 @@ const useStoreBase = create<ResilienceState>()(
 
           // 3. Debt Health (30% Weight)
           // Simple Formula: (1 - (total commitment / total balance)) * 100
+          // Note: total balance includes both current wallet balance and current savings pockets to protect score when saving!
           const commitments = state.user.totalCommitments || 0;
-          const totalBalance = state.user.currentBalance || 800;
+          const totalBalance = (state.user.currentBalance || 800) + currentSaved;
           const debtScore = totalBalance > 0 
             ? Math.max(0, Math.min(100, (1 - (commitments / totalBalance)) * 100)) 
             : 100;
@@ -673,7 +700,11 @@ const useStoreBase = create<ResilienceState>()(
           }
         });
       }
-    })
+    }),
+    {
+      name: 'gx-youth-store',
+    }
+  )
 );
 
 interface UseStoreHook {
