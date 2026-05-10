@@ -439,7 +439,7 @@ export function Coach() {
             >
               <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </Link>
-            <div className="w-10 h-10 overflow-hidden rounded-full flex items-center justify-center bg-primary/10 border border-primary/20 shadow-inner">
+            <div className="w-10 h-10 flex items-center justify-center">
               <Pet animation={isThinking ? "think" : "idle"} size={40} />
             </div>
             <div>
