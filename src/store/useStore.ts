@@ -14,6 +14,11 @@ export interface Transaction {
   confidence?: number;
 }
 
+export interface PetOffset {
+  offsetY: number;
+  scale: number;
+}
+
 export interface SavingsPocket {
   id: string;
   name: string;
@@ -223,6 +228,10 @@ interface ResilienceState {
   toggleBillAutopay: (id: string) => void;
   payBillNow: (id: string) => void;
   processAutoPay: () => void;
+
+  // Pet Sprite Tuning
+  petOffsets: Record<string, PetOffset>;
+  updatePetOffset: (animation: string, offset: Partial<PetOffset>) => void;
 }
 
 const RISK_RETURNS = {
@@ -342,6 +351,18 @@ export const initialStoreState = {
   pendingMainGoal: null,
   hasNotificationSave: false,
   lastQuotaUpdateDate: null,
+  petOffsets: {
+    idle: { offsetY: -2, scale: 800 },
+    walk: { offsetY: -6.5, scale: 800 },
+    run: { offsetY: -13, scale: 800 },
+    wave: { offsetY: -15.9, scale: 800 },
+    excited: { offsetY: -23.6, scale: 800 },
+    sad: { offsetY: -27.5, scale: 800 },
+    happy: { offsetY: -33.3, scale: 800 },
+    angry: { offsetY: -39.7, scale: 800 },
+    think: { offsetY: -44.3, scale: 800 },
+    blink: { offsetY: 20.6, scale: 800 },
+  },
 };
 
 // Persisted Zustand store using localStorage
@@ -792,6 +813,14 @@ const useStoreBase = create<ResilienceState>()(
             }
           }
         });
+      },
+      updatePetOffset: (animation, offset) => {
+        set((state) => ({
+          petOffsets: {
+            ...state.petOffsets,
+            [animation]: { ...state.petOffsets[animation], ...offset }
+          }
+        }));
       }
     }),
     {
@@ -841,6 +870,8 @@ export const useStore = (() => {
       toggleBillAutopay: storeState.toggleBillAutopay,
       payBillNow: storeState.payBillNow,
       processAutoPay: storeState.processAutoPay,
+      updatePetOffset: storeState.updatePetOffset,
+      calculateDailyLimitForBalance: storeState.calculateDailyLimitForBalance,
     };
 
     const stateToUse = hydrated

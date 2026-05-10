@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { useStore } from "@/store/useStore"
 
 export type PetAnimation = "idle" | "walk" | "run" | "wave" | "excited" | "sad" | "happy" | "angry" | "think" | "blink"
 
 interface PetProps {
   animation?: PetAnimation
   size?: number
-  offsetY?: number // Add this for fine-tuning vertical alignment
   className?: string
 }
 
@@ -28,9 +28,11 @@ const ANIMATIONS: Record<PetAnimation, { row: number; frames: number }> = {
 const ROWS = 10
 const COLS = 8
 
-export function Pet({ animation = "idle", size = 64, offsetY = 0, className }: PetProps) {
+export function Pet({ animation = "idle", size = 64, className }: PetProps) {
+  const { petOffsets } = useStore()
   const [frame, setFrame] = useState(0)
   const anim = ANIMATIONS[animation]
+  const currentOffset = petOffsets[animation] || { offsetY: 0, scale: 800 }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -43,10 +45,9 @@ export function Pet({ animation = "idle", size = 64, offsetY = 0, className }: P
     setFrame(0)
   }, [animation])
 
-  // Standard percentage calculation for CSS spritesheets
-  // Using pixel offsets with a small adjustment to hide bleeding from adjacent frames
+  // Standard pixel offsets calculation
   const xOffset = -frame * size
-  const yOffset = -anim.row * size + (size * 0.0025) + offsetY // Restored user's preferred multiplier
+  const yOffset = -anim.row * size + (size * 0.0025) + (currentOffset.offsetY * (size / 64))
 
   return (
     <div
@@ -60,7 +61,7 @@ export function Pet({ animation = "idle", size = 64, offsetY = 0, className }: P
         className="absolute w-full h-full"
         style={{
           backgroundImage: `url('${process.env.NEXT_PUBLIC_BASE_PATH || ""}/assets/kebo/spritesheet.webp')`,
-          backgroundSize: `${COLS * 100}% auto`,
+          backgroundSize: `${currentOffset.scale}% auto`,
           backgroundPosition: `${xOffset}px ${yOffset}px`,
         }}
       />

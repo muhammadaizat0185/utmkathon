@@ -11,6 +11,7 @@ import { TrendingUp, Award, Calendar, Target, Shield, ArrowUpRight, ArrowDownRig
 import { t } from "@/lib/translations"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+import { useState, useEffect } from "react"
 
 const spendingData = [
   { name: 'Mon', amount: 45 },
@@ -38,6 +39,8 @@ const marketData = [
 export function Reports() {
   const { resilienceScore, language, debtRiskScore, savingsPockets } = useStore()
   const bills = useStore(state => state.bills)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // 1. Dynamic Savings Rate Calculation from Savings page
   const totalSavingsCurrent = savingsPockets.reduce((sum, p) => sum + p.current, 0)
@@ -132,25 +135,31 @@ export function Reports() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 h-48 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dynamicSpendingData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
-              <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#111114', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
-                itemStyle={{ color: '#818cf8' }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="amount" 
-                stroke="#6366f1" 
-                strokeWidth={3} 
-                dot={{ fill: '#6366f1', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {mounted ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dynamicSpendingData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#111114', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                  itemStyle={{ color: '#818cf8' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="#6366f1" 
+                  strokeWidth={3} 
+                  dot={{ fill: '#6366f1', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full bg-slate-100/10 animate-pulse flex items-center justify-center">
+              <TrendingUp className="w-8 h-8 text-primary/20" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -215,21 +224,25 @@ export function Reports() {
         <Card className="glass-card p-4">
           <div className="flex items-center gap-6">
             <div className="w-24 h-24 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    innerRadius={30}
-                    outerRadius={45}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+              {mounted ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      innerRadius={30}
+                      outerRadius={45}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="w-full h-full rounded-full bg-slate-100/10 animate-pulse" />
+              )}
             </div>
             <div className="flex-1 space-y-2">
               {categoryData.map((cat) => (

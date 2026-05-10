@@ -11,14 +11,30 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { t } from "@/lib/translations"
 import { Button } from "@/components/ui/button"
+import { Pet, PetAnimation } from "./ui/Pet"
+import { Slider } from "@/components/ui/slider"
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select"
 
 export function Settings() {
-  const { user, language, setLanguage } = useStore()
+  const { user, language, setLanguage, petOffsets, updatePetOffset } = useStore()
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const router = useRouter()
   const strings = t[language]
   const [showLogout, setShowLogout] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [selectedAnim, setSelectedAnim] = useState<PetAnimation>("idle")
+  const [isSaved, setIsSaved] = useState(false)
+  const [isCopied, setIsCopied] = useState(false)
+
+  const currentOffset = petOffsets[selectedAnim] || { offsetY: 0, scale: 800 }
 
   const handleLogout = () => {
     setIsLoggingOut(true)
@@ -60,20 +76,20 @@ export function Settings() {
                   {theme === 'dark' ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-amber-500" />}
                   <span className="text-xs font-medium">{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                  <button 
-                    onClick={() => setTheme('light')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all ${theme === 'light' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
-                  >
-                    LIGHT
-                  </button>
-                  <button 
-                    onClick={() => setTheme('dark')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all ${theme === 'dark' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
-                  >
-                    DARK
-                  </button>
-                </div>
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setTheme('light')}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all ${mounted && theme === 'light' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
+                    >
+                      LIGHT
+                    </button>
+                    <button 
+                      onClick={() => setTheme('dark')}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all ${mounted && theme === 'dark' ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
+                    >
+                      DARK
+                    </button>
+                  </div>
               </div>
               <div className="p-4 flex items-center justify-between border-b border-slate-200">
                 <div className="flex items-center gap-3">
@@ -108,6 +124,122 @@ export function Settings() {
                   <span className="text-xs font-medium">{strings.settingsDebtAuto}</span>
                 </div>
                 <Switch defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="text-[10px] uppercase font-bold text-muted-foreground px-2 tracking-widest">Kebo Sprite Tuner</h3>
+          <Card className="glass-card overflow-hidden">
+            <CardContent className="p-4 space-y-6">
+              {/* Preview Area */}
+              <div className="flex flex-col items-center gap-4 py-4 bg-slate-100/50 dark:bg-black/20 rounded-2xl border border-dashed border-primary/20">
+                <div className="relative group">
+                  <div className="absolute -inset-4 bg-primary/10 rounded-full blur-xl opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <Pet animation={selectedAnim} size={80} className="relative" />
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{selectedAnim}</p>
+                  <p className="text-[8px] text-muted-foreground">Real-time Preview</p>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Select Animation</label>
+                  <Select value={selectedAnim} onValueChange={(v) => setSelectedAnim(v as PetAnimation)}>
+                    <SelectTrigger className="h-10 bg-white/5 border-white/10 text-xs font-bold rounded-xl">
+                      <SelectValue placeholder="Select Animation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(petOffsets).map((anim) => (
+                        <SelectItem key={anim} value={anim} className="text-xs font-medium">
+                          {anim.toUpperCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Offset Y (Vertical)</label>
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" 
+                        value={currentOffset.offsetY}
+                        onChange={(e) => updatePetOffset(selectedAnim, { offsetY: parseFloat(e.target.value) || 0 })}
+                        className="w-14 h-6 bg-white/5 border border-white/10 rounded text-[10px] font-mono font-bold text-primary text-center focus:outline-none focus:border-primary/50"
+                      />
+                      <span className="text-[8px] text-muted-foreground font-bold uppercase">px</span>
+                    </div>
+                  </div>
+                  <Slider 
+                    value={[currentOffset.offsetY]} 
+                    min={-50} 
+                    max={50} 
+                    step={0.1}
+                    onValueChange={([val]) => updatePetOffset(selectedAnim, { offsetY: val })}
+                    className="py-1"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Sprite Scale (%)</label>
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" 
+                        value={currentOffset.scale}
+                        onChange={(e) => updatePetOffset(selectedAnim, { scale: parseFloat(e.target.value) || 100 })}
+                        className="w-14 h-6 bg-white/5 border border-white/10 rounded text-[10px] font-mono font-bold text-primary text-center focus:outline-none focus:border-primary/50"
+                      />
+                      <span className="text-[8px] text-muted-foreground font-bold uppercase">%</span>
+                    </div>
+                  </div>
+                  <Slider 
+                    value={[currentOffset.scale]} 
+                    min={100} 
+                    max={1600} 
+                    step={1}
+                    onValueChange={([val]) => updatePetOffset(selectedAnim, { scale: val })}
+                    className="py-1"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    className="flex-1 h-10 bg-primary text-slate-900 font-black rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                    onClick={() => {
+                      setIsSaved(true)
+                      setTimeout(() => setIsSaved(false), 2000)
+                    }}
+                  >
+                    {isSaved ? "CONFIG SAVED! ✓" : "SAVE CONFIGURATION"}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="w-12 h-10 border-white/10 rounded-xl"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(petOffsets, null, 2))
+                      setIsCopied(true)
+                      setTimeout(() => setIsCopied(false), 2000)
+                    }}
+                  >
+                    {isCopied ? "✓" : "📋"}
+                  </Button>
+                </div>
+
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full text-[10px] font-bold text-muted-foreground hover:text-white h-8"
+                  onClick={() => updatePetOffset(selectedAnim, { offsetY: 0, scale: 800 })}
+                >
+                  Reset {selectedAnim} to Default
+                </Button>
               </div>
             </CardContent>
           </Card>
