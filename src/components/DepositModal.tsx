@@ -83,7 +83,19 @@ export function DepositModal({ isOpen, onClose, pocket }: DepositModalProps) {
             ))}
           </div>
 
-          {showBanner && (
+          {showBanner && safeDailyAfter < 10.0 ? (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[10px] leading-relaxed space-y-1 animate-fadeIn">
+              <p className="font-bold text-rose-400 flex items-center gap-1">
+                🚨 Survival Threshold Blocked
+              </p>
+              <p className="text-muted-foreground">
+                This deposit would drop your daily safe spending limit to <span className="font-bold text-rose-400">RM {safeDailyAfter.toFixed(2)}/day</span>, which is below the minimum survival limit of <span className="font-bold">RM 10.00/day</span>.
+              </p>
+              <p className="font-semibold text-rose-400">
+                Transaction restricted: Please lower the savings amount to ensure you have enough daily funds to survive!
+              </p>
+            </div>
+          ) : showBanner && (
             <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[10px] leading-relaxed space-y-1 animate-fadeIn">
               <p className="font-bold text-purple-400 flex items-center gap-1">
                 ⚠️ Daily Spend Plan Impact
@@ -103,7 +115,8 @@ export function DepositModal({ isOpen, onClose, pocket }: DepositModalProps) {
           <DialogFooter className="pt-2">
             <Button 
               type="submit" 
-              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-slate-900 font-bold shadow-lg shadow-primary/20"
+              disabled={parsedAmount <= 0 || safeDailyAfter < 10.0 || parsedAmount > user.currentBalance}
+              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-slate-900 font-bold shadow-lg shadow-primary/20 disabled:opacity-40"
             >
               {strings.saveConfirmDeposit || "Confirm Deposit"}
             </Button>

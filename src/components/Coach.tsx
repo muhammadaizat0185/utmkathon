@@ -86,7 +86,7 @@ export function Coach() {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     let responseText = "";
-    let redirect;
+    let redirect: { href: string; label: string } | undefined;
 
     switch (action.type) {
       case 'create_pocket':
@@ -789,12 +789,10 @@ export function Coach() {
                                                         <span className="text-[10px] font-black text-white">RM {alt.price}</span>
                                                       </div>
                                                       <Button
-                                                        asChild
+                                                        onClick={() => window.open(alt.link, "_blank")}
                                                         className={cn("h-8 px-4 flex-1 bg-gradient-to-r text-white text-[10px] font-black gap-2 rounded-full shadow-lg shrink-0", colors.btnFrom, colors.btnTo, colors.shadow)}
                                                       >
-                                                        <a href={alt.link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
-                                                          View Item <ExternalLink className="w-3 h-3 ml-1" />
-                                                        </a>
+                                                        View Item <ExternalLink className="w-3 h-3 ml-1" />
                                                       </Button>
                                                     </div>
                                                   </div>
