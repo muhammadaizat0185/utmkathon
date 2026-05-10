@@ -193,6 +193,7 @@ interface ResilienceState {
   lastAutoSaveDate: string | null;
   pet: {
     message: string;
+    animation: string;
   };
   lastGrowthSimulationDate: string | null;
   isRoundUpActive: boolean;
@@ -343,7 +344,8 @@ export const initialStoreState = {
   autoSaveAmount: 2.0,
   lastAutoSaveDate: null,
   pet: {
-    message: 'Stay focused!'
+    message: 'Stay focused!',
+    animation: "idle"
   },
   lastGrowthSimulationDate: null,
   isRoundUpActive: true,
@@ -579,7 +581,10 @@ const useStoreBase = create<ResilienceState>()(
           lastAutoSaveDate: todayStr,
           user: { ...state.user, currentBalance: state.user.currentBalance - totalAmount },
           savingsPockets: newPockets,
-          pet: { message: `Nice! Saved RM ${totalAmount.toFixed(2)} automatically today.` }
+          pet: { 
+            message: `Nice! Saved RM ${totalAmount.toFixed(2)} automatically today.`,
+            animation: "happy"
+          }
         };
       }),
       processRoundUp: (amount) => set((state) => {
@@ -602,7 +607,10 @@ const useStoreBase = create<ResilienceState>()(
         return {
           user: { ...state.user, currentBalance: state.user.currentBalance - roundUp },
           savingsPockets: newPockets,
-          pet: { message: `Spare change alert! RM ${roundUp.toFixed(2)} rounded up into pockets.` }
+          pet: { 
+            message: `Spare change alert! RM ${roundUp.toFixed(2)} rounded up into pockets.`,
+            animation: "excited"
+          }
         };
       }),
       simulateGrowth: () => set((state) => {
@@ -627,7 +635,10 @@ const useStoreBase = create<ResilienceState>()(
         return {
           savingsPockets: newPockets,
           lastGrowthSimulationDate: today,
-          pet: { message: `Market update: Your growth pockets earned RM ${totalGrowth.toFixed(2)} today! 📈` }
+          pet: { 
+            message: `Market update: Your growth pockets earned RM ${totalGrowth.toFixed(2)} today! 📈`,
+            animation: "excited"
+          }
         };
       }),
       updateResilienceScore: () => {
@@ -751,7 +762,10 @@ const useStoreBase = create<ResilienceState>()(
             nextDueDate: calculateNextDueDate(b.nextDueDate, b.frequency),
             paymentHistory: [paymentRecord, ...(b.paymentHistory || [])]
           } : b),
-          pet: { message: `Bill for ${bill.name} paid! Great job.` }
+          pet: { 
+            message: `Bill for ${bill.name} paid! Great job.`,
+            animation: "happy"
+          }
         }));
       },
       processAutoPay: () => {
@@ -805,11 +819,19 @@ const useStoreBase = create<ResilienceState>()(
                   nextDueDate: calculateNextDueDate(b.nextDueDate, b.frequency),
                   paymentHistory: [paymentRecord, ...(b.paymentHistory || [])]
                 } : b),
-                pet: { message: `AutoPay: ${bill.name} RM${bill.amount} paid successfully!` }
+                pet: { 
+                  message: `AutoPay: ${bill.name} RM${bill.amount} paid successfully!`,
+                  animation: "excited"
+                }
               }));
             } else {
               state.updateBill(bill.id, { status: 'paused' });
-              set({ pet: { message: `AutoPay paused for ${bill.name}: ${safety.reason}` } });
+              set({ 
+                pet: { 
+                  message: `AutoPay paused for ${bill.name}: ${safety.reason}`,
+                  animation: "sad"
+                } 
+              });
             }
           }
         });

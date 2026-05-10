@@ -23,7 +23,7 @@ const MESSAGES = [
 export function CoachFAB() {
   const pathname = usePathname()
   const [msgIndex, setMsgIndex] = useState(0)
-  const petMessage = useStore((state) => state.pet.message)
+  const { message: petMessage, animation: petAnimation } = useStore((state) => state.pet)
   const constraintsRef = useRef(null)
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export function CoachFAB() {
             className="block hover:scale-110 transition-transform active:scale-95"
           >
             <div className="relative pointer-events-none">
-              <Pet animation="idle" size={80} />
+              <Pet animation={(petAnimation as any) || "idle"} size={80} />
             </div>
           </Link>
         </div>

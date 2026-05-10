@@ -38,7 +38,7 @@ interface Message {
 }
 
 export function Coach() {
-  const { user, safeDailySpend, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction } = useStore()
+  const { user, safeDailySpend, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction, pet } = useStore()
   const strings = t[language]
   const scrollRef = useRef<HTMLDivElement>(null)
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -325,6 +325,7 @@ export function Coach() {
     setMessages(newMessages)
     if (!overrideText) setInput("")
     setIsThinking(true)
+    useStore.setState({ pet: { ...useStore.getState().pet, animation: "think" } })
 
     // Council dispatch logic
     setTimeout(() => {
@@ -430,6 +431,15 @@ export function Coach() {
       }
       setMessages([...newMessages, ...responses])
       setIsThinking(false)
+      
+      // Set appropriate animation based on response
+      let nextAnim = "idle";
+      if (responses.some(r => r.agent === 'Debt Shield')) nextAnim = "blink";
+      if (responses.some(r => r.agent === 'Savings Sentinel')) nextAnim = "happy";
+      if (responses.some(r => r.agent === 'Growth Guru')) nextAnim = "excited";
+      if (responses.some(r => r.agent === 'Finance Strategist')) nextAnim = "think";
+      
+      useStore.setState({ pet: { ...useStore.getState().pet, animation: nextAnim } })
     }, 1500)
   }
 
@@ -463,7 +473,7 @@ export function Coach() {
               <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </Link>
             <div className="w-10 h-10 flex items-center justify-center">
-              <Pet animation={isThinking ? "think" : "idle"} size={40} />
+              <Pet animation={(pet.animation as any) || (isThinking ? "think" : "idle")} size={40} />
             </div>
             <div>
               <h1 className="text-lg font-bold leading-tight">{strings.coachHeader}</h1>
