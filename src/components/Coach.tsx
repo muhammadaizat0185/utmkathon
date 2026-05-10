@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { User, Shield, Brain, Target, TrendingUp, Send, ChevronLeft } from "lucide-react"
+import { User, Shield, Brain, Target, TrendingUp, Send, ChevronLeft, ExternalLink, ShoppingBag, Store, Globe } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -56,6 +56,9 @@ export function Coach() {
   // Savings state
   const [saveDeposit, setSaveDeposit] = useState("200")
 
+  // Platform selection state for Finance Strategist
+  const [selectedPlatform, setSelectedPlatform] = useState<number | null>(null)
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
@@ -86,16 +89,30 @@ export function Coach() {
 
     switch (action.type) {
       case 'create_pocket':
+        const depositVal = parseFloat(saveDeposit) || 0;
+        
+        // Preserve values in history
+        setMessages(prev => {
+          const next = [...prev];
+          for (let k = next.length - 1; k >= 0; k--) {
+            if (next[k].proposal?.type === 'create_pocket') {
+              next[k].proposal = { ...next[k].proposal, current: depositVal };
+              break;
+            }
+          }
+          return next;
+        });
+
         addSavingsPocket({
           id: Math.random().toString(36).substring(2, 11),
           name: action.payload.name,
           target: action.payload.target,
-          current: action.payload.current || 0,
+          current: depositVal,
           icon: action.payload.icon || '💰',
           mode: action.payload.mode || 'savings',
           riskLevel: action.payload.riskLevel
         });
-        responseText = `Success! I've initialized your ${action.payload.name} with RM ${action.payload.current}. You can track your progress in the Savings tab.`;
+        responseText = `Success! I've initialized your ${action.payload.name} with RM ${depositVal}. You can track your progress in the Savings tab.`;
         redirect = { label: "Go to Savings", href: "/savings" };
         break;
       case 'postpone':
@@ -123,11 +140,20 @@ export function Coach() {
         const item = affordItem || "this item";
         const priceVal = affordPrice;
         
-        // Push user message
-        setMessages(prev => [
-          ...prev.map(m => ({ ...m, actions: undefined })),
-          { role: 'user', content: `Checking if I can afford ${item} for RM ${priceVal}` }
-        ]);
+        // Push user message and preserve values in the previous assistant message
+        setMessages(prev => {
+          const next = [...prev];
+          for (let k = next.length - 1; k >= 0; k--) {
+            if (next[k].proposal?.type === 'affordability') {
+              next[k].proposal = { ...next[k].proposal, item, price: priceVal };
+              break;
+            }
+          }
+          return [
+            ...next.map(m => ({ ...m, actions: undefined })),
+            { role: 'user', content: `Checking if I can afford ${item} for RM ${priceVal}` }
+          ];
+        });
         
         setIsExecuting(true);
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -139,27 +165,105 @@ export function Coach() {
         if (newDailySpend < 5) recommendation = "Avoid";
         else if (newDailySpend < 12) recommendation = "Caution";
         
-        const result = {
+        const budgetLimit = user.currentBalance * 0.3; // 30% rule
+        const isRisky = recommendation === "Avoid" || recommendation === "Caution";
+
+        // Build meaningful advice per recommendation level
+        let adviceSummary = "";
+        if (recommendation === "Avoid") {
+          adviceSummary = `At RM ${p.toLocaleString()}, this purchase is ${Math.round(p / user.currentBalance * 100)}% of your total balance — well above the safe 30% threshold of RM ${budgetLimit.toFixed(0)}. This could push you into debt or force you to rely on Buy Now Pay Later.`;
+        } else if (recommendation === "Caution") {
+          adviceSummary = `This is within reach, but it will tighten your daily budget to RM ${Math.max(0, newDailySpend).toFixed(2)}. Consider saving up for a few weeks first.`;
+        } else {
+          adviceSummary = `Great news — this fits comfortably within your budget. Your daily spending power stays healthy at RM ${Math.max(0, newDailySpend).toFixed(2)}.`;
+        }
+
+        const analysisResult = {
           item,
           price: p,
           impact: impact.toFixed(2),
           newDailySpend: Math.max(0, newDailySpend).toFixed(2),
           recommendation,
-          debtRiskImpact: (p / 20).toFixed(0)
+          debtRiskImpact: (p / 20).toFixed(0),
+          adviceSummary,
         };
+
+        // Step 1: Debt Shield posts the analysis
+        const shieldReply = isRisky 
+          ? `I've reviewed your finances against this purchase. This exceeds your safety threshold — I'm calling in our Finance Strategist for an alternative path.`
+          : `Looks good! This purchase is well within your means. Your shield remains strong:`;
 
         setMessages(prev => [
           ...prev,
           { 
             role: 'assistant', 
             agent: 'Debt Shield', 
-            content: `I've analyzed the impact of buying ${item}. Here is my recommendation:`,
+            content: shieldReply,
             proposal: {
               type: 'affordability_result',
-              ...result
+              ...analysisResult
             }
           }
         ]);
+
+        // Step 2: If risky, Finance Strategist enters with alternative recommendation
+        if (isRisky) {
+          // Show thinking state briefly
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // Build multi-platform alternatives
+          let alternatives: any[] = [];
+          if (item.toLowerCase().includes("iphone")) {
+            alternatives = [
+              {
+                platform: "Shopee",
+                name: "iPhone 11/16 Series (Pre-owned)",
+                price: 899,
+                condition: "Trusted Seller · 4.8★",
+                color: "orange",
+                image: "/assets/dump/sp.png",
+                link: "https://shopee.com.my/11-16-Series-Device-Uknown-No-Face-id-(Promotions)-i.20670985.25040145074?extraParams=%7B%22display_model_id%22%3A410819009557%2C%22model_selection_logic%22%3A3%7D&sp_atk=c4356b81-18ef-4dac-8318-1ca783edce3d&xptdk=c4356b81-18ef-4dac-8318-1ca783edce3d",
+              },
+              {
+                platform: "Lazada",
+                name: "iPhone X (Refurbished)",
+                price: 750,
+                condition: "Refurbished · Free Shipping",
+                color: "blue",
+                image: "/assets/dump/lz.png",
+                link: "https://www.lazada.com.my/products/pdp-i4776774349-s26934084186.html",
+              },
+              {
+                platform: "FB Marketplace",
+                name: "iPhone (Local Pickup)",
+                price: 650,
+                condition: "Used · Negotiable · KL Area",
+                color: "indigo",
+                image: "/assets/dump/fb.png",
+                link: "https://www.facebook.com/share/1M1WuuUcWj/",
+              },
+            ];
+          }
+
+          const strategistMessage = alternatives.length > 0 
+            ? `I've reviewed the Debt Shield's audit. I've sourced ${alternatives.length} alternatives that stay within your safe 30% spending limit of RM ${budgetLimit.toFixed(0)}:`
+            : `I've reviewed the Debt Shield's audit. I'd recommend holding off on this purchase and building a dedicated savings pocket first. Come back when you've saved at least 30% of the target price.`;
+
+          setSelectedPlatform(null);
+          setMessages(prev => [
+            ...prev,
+            { 
+              role: 'assistant', 
+              agent: 'Finance Strategist', 
+              content: strategistMessage,
+              proposal: alternatives.length > 0 ? {
+                type: 'strategist_alternative',
+                alternatives,
+                budgetLimit: budgetLimit.toFixed(0),
+              } : undefined
+            }
+          ]);
+        }
         
         // Reset local inputs for next time
         setAffordItem("");
@@ -464,7 +568,7 @@ export function Coach() {
                                           <label className="text-[8px] uppercase font-bold text-muted-foreground">Item Name</label>
                                           <Input 
                                             placeholder="e.g. New Shoes" 
-                                            value={m.role === 'assistant' && i === messages.length - 1 ? affordItem : ""} 
+                                            value={m.proposal.item || (i === messages.length - 1 ? affordItem : "")} 
                                             onChange={(e) => setAffordItem(e.target.value)}
                                             disabled={isExecuting || i < messages.length - 1}
                                             className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
@@ -475,10 +579,10 @@ export function Coach() {
                                           <Input 
                                             type="number" 
                                             placeholder="0.00" 
-                                            value={m.role === 'assistant' && i === messages.length - 1 ? affordPrice : ""} 
+                                            value={m.proposal.price || (i === messages.length - 1 ? affordPrice : "")} 
                                             onChange={(e) => setAffordPrice(e.target.value)}
                                             disabled={isExecuting || i < messages.length - 1}
-                                            className="h-8 text-xs bg-white/10 border-white/20 text-white placeholder:text-white/40 disabled:opacity-50"
+                                            className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
                                           />
                                         </div>
                                         
@@ -496,34 +600,178 @@ export function Coach() {
                                   </Card>
                                 ) : m.proposal.type === 'affordability_result' ? (
                                   <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-4">
-                                      <div className={cn(
-                                        "p-2 rounded-lg text-center text-[9px] font-black uppercase tracking-widest",
-                                        m.proposal.recommendation === "Avoid" ? "bg-rose-500 text-white" : 
-                                        m.proposal.recommendation === "Caution" ? "bg-amber-500 text-black" : "bg-emerald-500 text-white"
-                                      )}>
-                                        Recommendation: {m.proposal.recommendation}
-                                      </div>
-                                      
-                                      <div className="flex justify-around text-center gap-2">
-                                        <div className="flex-1 p-2 rounded-xl bg-white/5 border border-white/10">
-                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">New Daily</p>
-                                          <p className="text-xs font-bold text-white">RM {m.proposal.newDailySpend}</p>
+                                    <CardContent className="p-4 space-y-3">
+                                      {/* Status Header */}
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <div className={cn(
+                                            "w-2 h-2 rounded-full animate-pulse",
+                                            m.proposal.recommendation === "Avoid" ? "bg-rose-500" : 
+                                            m.proposal.recommendation === "Caution" ? "bg-amber-500" : "bg-emerald-500"
+                                          )} />
+                                          <p className="text-[10px] font-bold text-white">{m.proposal.item}</p>
                                         </div>
-                                        <div className="flex-1 p-2 rounded-xl bg-white/5 border border-white/10">
-                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">Risk Impact</p>
-                                          <p className="text-xs font-bold text-white">+{m.proposal.debtRiskImpact}</p>
+                                        <Badge className={cn(
+                                          "text-[7px] h-4 px-2 font-black uppercase tracking-wider border",
+                                          m.proposal.recommendation === "Avoid" 
+                                            ? "bg-rose-500/15 text-rose-400 border-rose-500/30" 
+                                            : m.proposal.recommendation === "Caution" 
+                                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30" 
+                                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                        )}>
+                                          {m.proposal.recommendation === "Avoid" ? "Not Recommended" : 
+                                           m.proposal.recommendation === "Caution" ? "Proceed with Care" : "Good to Go"}
+                                        </Badge>
+                                      </div>
+
+                                      {/* Metrics Row */}
+                                      <div className="grid grid-cols-3 gap-1.5">
+                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">Price</p>
+                                          <p className="text-[11px] font-bold text-white">RM {m.proposal.price?.toLocaleString()}</p>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">Daily After</p>
+                                          <p className={cn("text-[11px] font-bold", 
+                                            parseFloat(m.proposal.newDailySpend) < 5 ? "text-rose-400" : 
+                                            parseFloat(m.proposal.newDailySpend) < 12 ? "text-amber-400" : "text-emerald-400"
+                                          )}>RM {m.proposal.newDailySpend}</p>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">% Balance</p>
+                                          <p className={cn("text-[11px] font-bold",
+                                            (m.proposal.price / user.currentBalance * 100) > 30 ? "text-rose-400" : "text-emerald-400"
+                                          )}>{Math.round(m.proposal.price / user.currentBalance * 100)}%</p>
                                         </div>
                                       </div>
 
-                                      <p className="text-[9px] text-muted-foreground italic leading-tight px-1">
-                                        {m.proposal.recommendation === "Avoid" ? 
-                                          "This will drop your budget below RM5. Avoid this purchase." :
-                                          m.proposal.recommendation === "Caution" ?
-                                          "You can afford this, but it will significantly tighten your budget." :
-                                          "Well within your range. Won't significantly impact your budget."
-                                        }
+                                      {/* Advice */}
+                                      <p className="text-[9px] text-white/60 leading-relaxed">
+                                        {m.proposal.adviceSummary}
                                       </p>
+
+                                      {/* Handoff indicator for risky purchases */}
+                                      {(m.proposal.recommendation === "Avoid" || m.proposal.recommendation === "Caution") && (
+                                        <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+                                          <Brain className="w-3 h-3 text-amber-500 animate-pulse" />
+                                          <p className="text-[8px] text-amber-400 font-bold">Handing off to Finance Strategist...</p>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                ) : m.proposal.type === 'strategist_alternative' ? (
+                                  <Card className="glass-card bg-slate-900/40 border-amber-500/20 overflow-hidden">
+                                    <CardContent className="p-4 space-y-3">
+                                      {/* Strategist Header */}
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                            <Brain className="w-3.5 h-3.5 text-amber-500" />
+                                          </div>
+                                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Marketplace Comparison</p>
+                                        </div>
+                                        <Badge className="text-[7px] h-4 px-2 bg-amber-500/10 text-amber-400 border-amber-500/20 font-bold">
+                                          {m.proposal.alternatives?.length} options
+                                        </Badge>
+                                      </div>
+
+                                      <p className="text-[8px] text-white/40">Safe limit: RM {m.proposal.budgetLimit} (30% of balance). Tap to expand:</p>
+
+                                      {/* Platform Accordion Stack */}
+                                      <div className="space-y-2">
+                                        {m.proposal.alternatives?.map((alt: any, idx: number) => {
+                                          const colorMap: Record<string, { bg: string; border: string; text: string; activeBg: string; gradient: string; btnFrom: string; btnTo: string; shadow: string }> = {
+                                            orange: { bg: 'bg-orange-500/5', border: 'border-orange-500/20', text: 'text-orange-400', activeBg: 'bg-orange-500/15', gradient: 'from-orange-500/10 to-transparent', btnFrom: 'from-orange-500', btnTo: 'to-orange-600', shadow: 'shadow-orange-500/20' },
+                                            blue: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-400', activeBg: 'bg-blue-500/15', gradient: 'from-blue-500/10 to-transparent', btnFrom: 'from-blue-500', btnTo: 'to-blue-600', shadow: 'shadow-blue-500/20' },
+                                            indigo: { bg: 'bg-indigo-500/5', border: 'border-indigo-500/20', text: 'text-indigo-400', activeBg: 'bg-indigo-500/15', gradient: 'from-indigo-500/10 to-transparent', btnFrom: 'from-indigo-500', btnTo: 'to-indigo-600', shadow: 'shadow-indigo-500/20' },
+                                          };
+                                          const colors = colorMap[alt.color] || colorMap.orange;
+                                          const isSelected = selectedPlatform === idx;
+                                          
+                                          const originalPrice = messages.find(msg => msg.proposal?.type === 'affordability_result')?.proposal?.price || 1;
+                                          const savePercent = Math.round((originalPrice - alt.price) / originalPrice * 100);
+
+                                          const PlatformIcon = alt.platform.toLowerCase().includes('shopee') ? ShoppingBag : 
+                                                               alt.platform.toLowerCase().includes('lazada') ? Store : Globe;
+
+                                          return (
+                                            <div key={idx} className="space-y-2">
+                                              <button
+                                                onClick={() => setSelectedPlatform(isSelected ? null : idx)}
+                                                className={cn(
+                                                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 text-left",
+                                                  isSelected 
+                                                    ? `${colors.activeBg} ${colors.border} ring-1 ring-white/10`
+                                                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                                                )}
+                                              >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm", colors.bg)}>
+                                                    <PlatformIcon className={cn("w-4 h-4", colors.text)} />
+                                                  </div>
+                                                  <div className="flex flex-col min-w-0">
+                                                    <span className={cn("text-[10px] font-bold uppercase tracking-wider whitespace-nowrap", isSelected ? colors.text : "text-white/90")}>
+                                                      {alt.platform}
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                      <span className="text-[11px] font-black text-white shrink-0">RM {alt.price}</span>
+                                                      <Badge className="text-[6.5px] h-3 px-1 bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-bold shrink-0">
+                                                        Save {savePercent}%
+                                                      </Badge>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                <motion.div
+                                                  animate={{ rotate: isSelected ? 180 : 0 }}
+                                                  className="text-white/20 shrink-0 ml-2"
+                                                >
+                                                  <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />
+                                                </motion.div>
+                                              </button>
+
+                                              <AnimatePresence>
+                                                {isSelected && (
+                                                  <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="overflow-hidden"
+                                                  >
+                                                    <div className={cn("p-3 rounded-xl bg-gradient-to-br border border-white/10 flex flex-col gap-3", colors.gradient)}>
+                                                      {/* Big Product Image */}
+                                                      <div className="w-full aspect-[16/10] rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                                                        <img src={alt.image} alt={alt.name} className="w-full h-full object-cover" />
+                                                      </div>
+
+                                                      {/* Product Info Stack */}
+                                                      <div className="space-y-0.5">
+                                                        <p className="text-[11px] text-white font-bold leading-tight">{alt.name}</p>
+                                                        <p className="text-[9px] text-white/50">{alt.condition}</p>
+                                                      </div>
+
+                                                      {/* Interactive Row (Pills in one row) */}
+                                                      <div className="flex items-center gap-1.5 pt-1">
+                                                        <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0">
+                                                          <span className="text-[10px] font-black text-white">RM {alt.price}</span>
+                                                        </div>
+                                                        <Button 
+                                                          asChild
+                                                          className={cn("h-8 px-4 flex-1 bg-gradient-to-r text-white text-[10px] font-black gap-2 rounded-full shadow-lg shrink-0", colors.btnFrom, colors.btnTo, colors.shadow)}
+                                                        >
+                                                          <a href={alt.link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
+                                                            View Item <ExternalLink className="w-3 h-3 ml-1" />
+                                                          </a>
+                                                        </Button>
+                                                      </div>
+                                                    </div>
+                                                  </motion.div>
+                                                )}
+                                              </AnimatePresence>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </CardContent>
                                   </Card>
                                 ) : m.proposal.type === 'create_pocket' ? (
@@ -546,7 +794,7 @@ export function Coach() {
                                         <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
                                         <Input 
                                           type="number" 
-                                          value={i === messages.length - 1 ? saveDeposit : "200"} 
+                                          value={m.proposal.current !== undefined ? m.proposal.current : (i === messages.length - 1 ? saveDeposit : "")} 
                                           onChange={(e) => setSaveDeposit(e.target.value)}
                                           disabled={isExecuting || i < messages.length - 1}
                                           className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"

@@ -55,10 +55,12 @@ function NeuralLine({ x1, y1, x2, y2, delay }: { x1: number; y1: number; x2: num
 }
 
 export function SplashScreen() {
+  const [mounted, setMounted] = useState(false)
   const [show, setShow] = useState(true)
   const [phase, setPhase] = useState(0) // 0: init, 1: logo, 2: text, 3: ready
 
   useEffect(() => {
+    setMounted(true)
     const t1 = setTimeout(() => setPhase(1), 200)
     const t2 = setTimeout(() => setPhase(2), 800)
     const t3 = setTimeout(() => setPhase(3), 1400)
@@ -182,7 +184,7 @@ export function SplashScreen() {
 
           {/* === LAYER 5: Floating Particles === */}
           <div className="absolute inset-0 overflow-hidden">
-            {particles.map(p => (
+            {mounted && particles.map(p => (
               <Particle key={p.id} {...p} />
             ))}
           </div>
