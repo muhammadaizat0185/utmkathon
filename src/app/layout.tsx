@@ -12,10 +12,10 @@ const inter = { className: "font-sans" };
 
 
 export const metadata: Metadata = {
-  title: "Resilience Agent | AI Financial Companion",
-  description: "Secure your financial future with AI-powered resilience agents.",
+  title: "GX Youth | AI Financial Council",
+  description: "Empowering the next generation with AI-driven financial resilience.",
   appleWebApp: {
-    title: "Resilience",
+    title: "GX Youth",
     statusBarStyle: "default",
     capable: true,
   },
