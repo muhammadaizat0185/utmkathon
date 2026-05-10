@@ -290,7 +290,38 @@ export function Coach() {
     const textToSubmit = (overrideText || input).toLowerCase();
     if (!textToSubmit.trim() || isThinking) return
 
-    const newMessages: Message[] = [...messages, { role: 'user', content: overrideText || input }]
+    const triggerFinance = textToSubmit.includes("spend") || textToSubmit.includes("safe") || textToSubmit.includes("limit") || textToSubmit.includes("daily") || textToSubmit.includes("budget") || textToSubmit.includes("money") || textToSubmit.includes("impulse")
+    const triggerGrowth = textToSubmit.includes("invest") || textToSubmit.includes("stock") || textToSubmit.includes("crypto") || textToSubmit.includes("gold") || textToSubmit.includes("growth") || textToSubmit.includes("opportunity") || textToSubmit.includes("market")
+    const triggerSave = textToSubmit.includes("save") || textToSubmit.includes("goal") || textToSubmit.includes("fund") || textToSubmit.includes("laptop") || textToSubmit.includes("emergency")
+    const triggerDebt = textToSubmit.includes("debt") || textToSubmit.includes("bnpl") || textToSubmit.includes("loan") || textToSubmit.includes("risk") || textToSubmit.includes("credit") || textToSubmit.includes("afford") || textToSubmit.includes("buy")
+    const triggerBills = textToSubmit.includes("bill") || textToSubmit.includes("rent") || textToSubmit.includes("autopay") || textToSubmit.includes("commitment") || textToSubmit.includes("lock") || textToSubmit.includes("protected")
+    const triggerTransfer = textToSubmit.includes("transfer") || textToSubmit.includes("send") || (textToSubmit.includes("pay") && textToSubmit.includes("to"))
+
+    // Reset & Replace: If a new request comes in, clean out any unsubmitted tasks of the same type
+    let baseMessages: Message[] = [...messages]
+    
+    // Determine the type of task being triggered to clean up previous versions
+    const taskType = triggerDebt ? 'affordability' : 
+                     triggerSave ? 'create_pocket' : 
+                     triggerTransfer ? 'transfer' : null;
+
+    if (taskType) {
+      const unsubmittedIndices = new Set<number>()
+      baseMessages.forEach((msg, idx) => {
+        // If it's the same task type and still has actions (meaning it's not completed)
+        // Or if it's an affordability card without an item name yet
+        if (msg.proposal?.type === taskType && (msg.actions || !msg.proposal?.item)) {
+          unsubmittedIndices.add(idx)
+          // Also remove the preceding user message that triggered it
+          if (idx > 0 && baseMessages[idx - 1].role === 'user') {
+            unsubmittedIndices.add(idx - 1)
+          }
+        }
+      })
+      baseMessages = baseMessages.filter((_, idx) => !unsubmittedIndices.has(idx))
+    }
+
+    const newMessages: Message[] = [...baseMessages, { role: 'user', content: overrideText || input }]
     setMessages(newMessages)
     if (!overrideText) setInput("")
     setIsThinking(true)
@@ -298,14 +329,6 @@ export function Coach() {
     // Council dispatch logic
     setTimeout(() => {
       const responses: Message[] = []
-      const triggerFinance = textToSubmit.includes("spend") || textToSubmit.includes("safe") || textToSubmit.includes("limit") || textToSubmit.includes("daily") || textToSubmit.includes("budget") || textToSubmit.includes("money") || textToSubmit.includes("impulse")
-      const triggerGrowth = textToSubmit.includes("invest") || textToSubmit.includes("stock") || textToSubmit.includes("crypto") || textToSubmit.includes("gold") || textToSubmit.includes("growth") || textToSubmit.includes("opportunity") || textToSubmit.includes("market")
-      const triggerSave = textToSubmit.includes("save") || textToSubmit.includes("goal") || textToSubmit.includes("fund") || textToSubmit.includes("laptop") || textToSubmit.includes("emergency")
-      const triggerDebt = textToSubmit.includes("debt") || textToSubmit.includes("bnpl") || textToSubmit.includes("loan") || textToSubmit.includes("risk") || textToSubmit.includes("credit")
-      const triggerBills = textToSubmit.includes("bill") || textToSubmit.includes("rent") || textToSubmit.includes("autopay") || textToSubmit.includes("commitment") || textToSubmit.includes("lock") || textToSubmit.includes("protected")
-      // More specific transfer triggers to avoid false positives with common words like 'to'
-      const triggerTransfer = textToSubmit.includes("transfer") || textToSubmit.includes("send") || (textToSubmit.includes("pay") && textToSubmit.includes("to"))
-
       if (triggerTransfer) {
         responses.push({
           role: 'assistant',
