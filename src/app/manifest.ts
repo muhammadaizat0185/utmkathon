@@ -7,9 +7,9 @@ export default function manifest(): MetadataRoute.Manifest {
   const path = (value: string) => `${basePath}${value}`
 
   return {
-    name: 'Resilience Agent',
-    short_name: 'Resilience',
-    description: 'AI-powered financial resilience companion for students.',
+    name: 'GX Youth',
+    short_name: 'GX Youth',
+    description: 'AI-powered financial resilience companion by GXBank.',
     start_url: path('/'),
     scope: path('/'),
     display: 'standalone',
