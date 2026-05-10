@@ -41,18 +41,19 @@ export function Coach() {
   const { user, safeDailySpend, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction } = useStore()
   const strings = t[language]
   const scrollRef = useRef<HTMLDivElement>(null)
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isThinking, setIsThinking] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
-  
+
   // Affordability state
   const [affordItem, setAffordItem] = useState("")
   const [affordPrice, setAffordPrice] = useState("")
   const [affordResult, setAffordResult] = useState<any>(null)
   const [isSimulating, setIsSimulating] = useState(false)
-  
+
   // Savings state
   const [saveDeposit, setSaveDeposit] = useState("200")
 
@@ -71,6 +72,7 @@ export function Coach() {
 
   const handleAction = async (action: ChatAction) => {
     if (isExecuting) return;
+    setIsExecuting(true);
 
     // 1. Immediately show user choice and remove buttons (except for local simulations)
     if (action.type !== 'simulate_affordability') {
@@ -78,7 +80,6 @@ export function Coach() {
         ...prev.map(m => ({ ...m, actions: undefined })),
         { role: 'user', content: action.label }
       ]);
-      setIsExecuting(true);
     }
 
     // 2. Artificial delay for realism
@@ -90,7 +91,7 @@ export function Coach() {
     switch (action.type) {
       case 'create_pocket':
         const depositVal = parseFloat(saveDeposit) || 0;
-        
+
         // Preserve values in history
         setMessages(prev => {
           const next = [...prev];
@@ -139,7 +140,7 @@ export function Coach() {
       case 'simulate_affordability':
         const item = affordItem || "this item";
         const priceVal = affordPrice;
-        
+
         // Push user message and preserve values in the previous assistant message
         setMessages(prev => {
           const next = [...prev];
@@ -154,17 +155,17 @@ export function Coach() {
             { role: 'user', content: `Checking if I can afford ${item} for RM ${priceVal}` }
           ];
         });
-        
-        setIsExecuting(true);
+
+        // 2. Perform Analysis
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
+
         const p = parseFloat(priceVal);
-        const impact = p / 14; 
+        const impact = p / 14;
         const newDailySpend = safeDailySpend - impact;
         let recommendation = "Safe";
         if (newDailySpend < 5) recommendation = "Avoid";
         else if (newDailySpend < 12) recommendation = "Caution";
-        
+
         const budgetLimit = user.currentBalance * 0.3; // 30% rule
         const isRisky = recommendation === "Avoid" || recommendation === "Caution";
 
@@ -189,15 +190,15 @@ export function Coach() {
         };
 
         // Step 1: Debt Shield posts the analysis
-        const shieldReply = isRisky 
+        const shieldReply = isRisky
           ? `I've reviewed your finances against this purchase. This exceeds your safety threshold — I'm calling in our Finance Strategist for an alternative path.`
           : `Looks good! This purchase is well within your means. Your shield remains strong:`;
 
         setMessages(prev => [
           ...prev,
-          { 
-            role: 'assistant', 
-            agent: 'Debt Shield', 
+          {
+            role: 'assistant',
+            agent: 'Debt Shield',
             content: shieldReply,
             proposal: {
               type: 'affordability_result',
@@ -221,7 +222,7 @@ export function Coach() {
                 price: 899,
                 condition: "Trusted Seller · 4.8★",
                 color: "orange",
-                image: "/assets/dump/sp.png",
+                image: `${basePath}/assets/dump/sp.png`,
                 link: "https://shopee.com.my/11-16-Series-Device-Uknown-No-Face-id-(Promotions)-i.20670985.25040145074?extraParams=%7B%22display_model_id%22%3A410819009557%2C%22model_selection_logic%22%3A3%7D&sp_atk=c4356b81-18ef-4dac-8318-1ca783edce3d&xptdk=c4356b81-18ef-4dac-8318-1ca783edce3d",
               },
               {
@@ -230,7 +231,7 @@ export function Coach() {
                 price: 750,
                 condition: "Refurbished · Free Shipping",
                 color: "blue",
-                image: "/assets/dump/lz.png",
+                image: `${basePath}/assets/dump/lz.png`,
                 link: "https://www.lazada.com.my/products/pdp-i4776774349-s26934084186.html",
               },
               {
@@ -239,22 +240,22 @@ export function Coach() {
                 price: 650,
                 condition: "Used · Negotiable · KL Area",
                 color: "indigo",
-                image: "/assets/dump/fb.png",
+                image: `${basePath}/assets/dump/fb.png`,
                 link: "https://www.facebook.com/share/1M1WuuUcWj/",
               },
             ];
           }
 
-          const strategistMessage = alternatives.length > 0 
+          const strategistMessage = alternatives.length > 0
             ? `I've reviewed the Debt Shield's audit. I've sourced ${alternatives.length} alternatives that stay within your safe 30% spending limit of RM ${budgetLimit.toFixed(0)}:`
             : `I've reviewed the Debt Shield's audit. I'd recommend holding off on this purchase and building a dedicated savings pocket first. Come back when you've saved at least 30% of the target price.`;
 
           setSelectedPlatform(null);
           setMessages(prev => [
             ...prev,
-            { 
-              role: 'assistant', 
-              agent: 'Finance Strategist', 
+            {
+              role: 'assistant',
+              agent: 'Finance Strategist',
               content: strategistMessage,
               proposal: alternatives.length > 0 ? {
                 type: 'strategist_alternative',
@@ -264,24 +265,24 @@ export function Coach() {
             }
           ]);
         }
-        
+
         // Reset local inputs for next time
         setAffordItem("");
         setAffordPrice("");
         setIsExecuting(false);
-        return; 
+        return;
     }
 
     setMessages(prev => [
       ...prev,
-      { 
-        role: 'assistant', 
-        agent: action.type === 'transfer' ? 'Finance Strategist' : 'Savings Sentinel', 
+      {
+        role: 'assistant',
+        agent: action.type === 'transfer' ? 'Finance Strategist' : 'Savings Sentinel',
         content: responseText,
         redirect: redirect
       }
     ]);
-    
+
     setIsExecuting(false);
   }
 
@@ -335,7 +336,7 @@ export function Coach() {
       } else if (triggerBills) {
         const lockedAmount = bills.filter(b => b.isLocked && b.status !== 'paid').reduce((sum, b) => sum + b.amount, 0);
         const nextBill = bills.filter(b => b.status !== 'paid').sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
-        
+
         responses.push({
           role: 'assistant',
           agent: 'Finance Strategist',
@@ -436,7 +437,7 @@ export function Coach() {
               <h1 className="text-lg font-bold leading-tight">{strings.coachHeader}</h1>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Resilience Council Active</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Active</p>
               </div>
             </div>
           </div>
@@ -447,491 +448,491 @@ export function Coach() {
       </header>
 
       {/* Chat Area */}
-      <div 
+      <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 scroll-smooth bg-transparent"
       >
         <div className="space-y-6 py-6 min-h-full flex flex-col">
 
-            <AnimatePresence mode="wait">
-              {messages.length === 0 ? (
-                <motion.div
-                  key="empty-state"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex flex-col justify-center h-full pt-10"
-                >
-                  <div className="mb-8">
-                    <h2 className="text-xl font-medium text-muted-foreground mb-1">Hi {user.name}</h2>
-                    <h1 className="text-3xl font-bold tracking-tight">Where should we start?</h1>
-                  </div>
+          <AnimatePresence mode="wait">
+            {messages.length === 0 ? (
+              <motion.div
+                key="empty-state"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex flex-col justify-center h-full pt-10"
+              >
+                <div className="mb-8">
+                  <h2 className="text-xl font-medium text-muted-foreground mb-1">Hi {user.name}</h2>
+                  <h1 className="text-3xl font-bold tracking-tight">Where should we start?</h1>
+                </div>
 
-                  <div className="space-y-3">
-                    {starterPrompts.map((prompt, i) => (
-                      <motion.button
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        key={prompt.text}
-                        onClick={() => sendMessage(prompt.text)}
-                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-left group"
-                      >
-                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-black/20 shrink-0", prompt.color)}>
-                          <prompt.icon className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">
-                          {prompt.text}
+                <div className="space-y-3">
+                  {starterPrompts.map((prompt, i) => (
+                    <motion.button
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      key={prompt.text}
+                      onClick={() => sendMessage(prompt.text)}
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-left group"
+                    >
+                      <div className={cn("w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-black/20 shrink-0", prompt.color)}>
+                        <prompt.icon className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">
+                        {prompt.text}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="chat-history"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-6"
+              >
+                {messages.map((m, i) => {
+                  const agent = AGENTS.find(a => a.name === m.agent)
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn(
+                        "flex flex-col gap-1",
+                        m.role === 'user' ? "items-end" : "items-start"
+                      )}
+                    >
+                      {m.role === 'assistant' && (
+                        <span className={cn("text-[8px] font-bold uppercase tracking-widest ml-11", agent?.color)}>
+                          {m.agent}
                         </span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="chat-history"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-6"
-                >
-                  {messages.map((m, i) => {
-                    const agent = AGENTS.find(a => a.name === m.agent)
-                    return (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={cn(
-                          "flex flex-col gap-1",
-                          m.role === 'user' ? "items-end" : "items-start"
-                        )}
-                      >
-                        {m.role === 'assistant' && (
-                          <span className={cn("text-[8px] font-bold uppercase tracking-widest ml-11", agent?.color)}>
-                            {m.agent}
-                          </span>
-                        )}
+                      )}
+                      <div className={cn(
+                        "flex gap-3",
+                        m.role === 'user' ? "flex-row-reverse" : ""
+                      )}>
                         <div className={cn(
-                          "flex gap-3",
-                          m.role === 'user' ? "flex-row-reverse" : ""
+                          "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm",
+                          m.role === 'assistant' ? cn(agent?.bg, "border-white/20") : "bg-slate-200 border-slate-300 text-slate-600"
                         )}>
+                          {m.role === 'assistant' ? (
+                            agent ? <agent.icon className={cn("w-4 h-4", agent.color)} /> : <Pet animation="idle" size={32} />
+                          ) : <User className="w-4 h-4" />}
+                        </div>
+                        <div className={cn("flex flex-col gap-3 max-w-[90%]", m.role === 'user' ? "items-end" : "items-start")}>
                           <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm",
-                            m.role === 'assistant' ? cn(agent?.bg, "border-white/20") : "bg-slate-200 border-slate-300 text-slate-600"
+                            "p-3 rounded-2xl text-[11px] leading-relaxed shadow-sm w-fit",
+                            m.role === 'assistant' ? "bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-white/5" : "bg-primary text-white font-medium"
                           )}>
-                            {m.role === 'assistant' ? (
-                              agent ? <agent.icon className={cn("w-4 h-4", agent.color)} /> : <Pet animation="idle" size={32} />
-                            ) : <User className="w-4 h-4" />}
+                            {m.content}
                           </div>
-                          <div className={cn("flex flex-col gap-3 max-w-[90%]", m.role === 'user' ? "items-end" : "items-start")}>
-                              <div className={cn(
-                                "p-3 rounded-2xl text-[11px] leading-relaxed shadow-sm w-fit",
-                                m.role === 'assistant' ? "bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-white/5" : "bg-primary text-white font-medium"
-                              )}>
-                                {m.content}
-                              </div>
 
-                              {/* Redirect Button */}
-                              {m.redirect && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 5 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: 0.2 }}
-                                >
-                                  <Link 
-                                    href={m.redirect.href}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-[10px] font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
-                                  >
-                                    {m.redirect.label}
-                                    <TrendingUp className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                                  </Link>
-                                </motion.div>
-                              )}
-
-                            {/* Proposal Card Rendering */}
-                            {m.proposal && (
-                              <motion.div 
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="w-full max-w-[280px]"
+                          {/* Redirect Button */}
+                          {m.redirect && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                            >
+                              <Link
+                                href={m.redirect.href}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-[10px] font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
                               >
-                                {m.proposal.type === 'affordability' ? (
-                                  <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-4">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Shield className="w-4 h-4 text-purple-500" />
-                                        <p className="text-xs font-bold text-white uppercase tracking-wider">Affordability Simulator</p>
-                                      </div>
-                                      
-                                      <div className="space-y-3">
-                                        <div className="space-y-1">
-                                          <label className="text-[8px] uppercase font-bold text-muted-foreground">Item Name</label>
-                                          <Input 
-                                            placeholder="e.g. New Shoes" 
-                                            value={m.proposal.item || (i === messages.length - 1 ? affordItem : "")} 
-                                            onChange={(e) => setAffordItem(e.target.value)}
-                                            disabled={isExecuting || i < messages.length - 1}
-                                            className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
-                                          />
-                                        </div>
-                                        <div className="space-y-1">
-                                          <label className="text-[8px] uppercase font-bold text-muted-foreground">Price (RM)</label>
-                                          <Input 
-                                            type="number" 
-                                            placeholder="0.00" 
-                                            value={m.proposal.price || (i === messages.length - 1 ? affordPrice : "")} 
-                                            onChange={(e) => setAffordPrice(e.target.value)}
-                                            disabled={isExecuting || i < messages.length - 1}
-                                            className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
-                                          />
-                                        </div>
-                                        
-                                        {i === messages.length - 1 && (
-                                          <Button 
-                                            className="w-full h-8 text-[10px] bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                                            onClick={() => handleAction({ id: 'sim_afford', label: 'Simulate', type: 'simulate_affordability' })}
-                                            disabled={!affordPrice || isExecuting}
-                                          >
-                                            {isExecuting ? "Simulating..." : "Simulate Impact"}
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                ) : m.proposal.type === 'affordability_result' ? (
-                                  <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-3">
-                                      {/* Status Header */}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <div className={cn(
-                                            "w-2 h-2 rounded-full animate-pulse",
-                                            m.proposal.recommendation === "Avoid" ? "bg-rose-500" : 
-                                            m.proposal.recommendation === "Caution" ? "bg-amber-500" : "bg-emerald-500"
-                                          )} />
-                                          <p className="text-[10px] font-bold text-white">{m.proposal.item}</p>
-                                        </div>
-                                        <Badge className={cn(
-                                          "text-[7px] h-4 px-2 font-black uppercase tracking-wider border",
-                                          m.proposal.recommendation === "Avoid" 
-                                            ? "bg-rose-500/15 text-rose-400 border-rose-500/30" 
-                                            : m.proposal.recommendation === "Caution" 
-                                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30" 
-                                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                                        )}>
-                                          {m.proposal.recommendation === "Avoid" ? "Not Recommended" : 
-                                           m.proposal.recommendation === "Caution" ? "Proceed with Care" : "Good to Go"}
-                                        </Badge>
-                                      </div>
+                                {m.redirect.label}
+                                <TrendingUp className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                              </Link>
+                            </motion.div>
+                          )}
 
-                                      {/* Metrics Row */}
-                                      <div className="grid grid-cols-3 gap-1.5">
-                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
-                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">Price</p>
-                                          <p className="text-[11px] font-bold text-white">RM {m.proposal.price?.toLocaleString()}</p>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
-                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">Daily After</p>
-                                          <p className={cn("text-[11px] font-bold", 
-                                            parseFloat(m.proposal.newDailySpend) < 5 ? "text-rose-400" : 
-                                            parseFloat(m.proposal.newDailySpend) < 12 ? "text-amber-400" : "text-emerald-400"
-                                          )}>RM {m.proposal.newDailySpend}</p>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
-                                          <p className="text-[7px] text-muted-foreground uppercase font-bold">% Balance</p>
-                                          <p className={cn("text-[11px] font-bold",
-                                            (m.proposal.price / user.currentBalance * 100) > 30 ? "text-rose-400" : "text-emerald-400"
-                                          )}>{Math.round(m.proposal.price / user.currentBalance * 100)}%</p>
-                                        </div>
-                                      </div>
+                          {/* Proposal Card Rendering */}
+                          {m.proposal && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="w-full max-w-[280px]"
+                            >
+                              {m.proposal.type === 'affordability' ? (
+                                <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Shield className="w-4 h-4 text-purple-500" />
+                                      <p className="text-xs font-bold text-white uppercase tracking-wider">Affordability Simulator</p>
+                                    </div>
 
-                                      {/* Advice */}
-                                      <p className="text-[9px] text-white/60 leading-relaxed">
-                                        {m.proposal.adviceSummary}
-                                      </p>
-
-                                      {/* Handoff indicator for risky purchases */}
-                                      {(m.proposal.recommendation === "Avoid" || m.proposal.recommendation === "Caution") && (
-                                        <div className="pt-2 border-t border-white/10 flex items-center gap-2">
-                                          <Brain className="w-3 h-3 text-amber-500 animate-pulse" />
-                                          <p className="text-[8px] text-amber-400 font-bold">Handing off to Finance Strategist...</p>
-                                        </div>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-                                ) : m.proposal.type === 'strategist_alternative' ? (
-                                  <Card className="glass-card bg-slate-900/40 border-amber-500/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-3">
-                                      {/* Strategist Header */}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
-                                            <Brain className="w-3.5 h-3.5 text-amber-500" />
-                                          </div>
-                                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Marketplace Comparison</p>
-                                        </div>
-                                        <Badge className="text-[7px] h-4 px-2 bg-amber-500/10 text-amber-400 border-amber-500/20 font-bold">
-                                          {m.proposal.alternatives?.length} options
-                                        </Badge>
-                                      </div>
-
-                                      <p className="text-[8px] text-white/40">Safe limit: RM {m.proposal.budgetLimit} (30% of balance). Tap to expand:</p>
-
-                                      {/* Platform Accordion Stack */}
-                                      <div className="space-y-2">
-                                        {m.proposal.alternatives?.map((alt: any, idx: number) => {
-                                          const colorMap: Record<string, { bg: string; border: string; text: string; activeBg: string; gradient: string; btnFrom: string; btnTo: string; shadow: string }> = {
-                                            orange: { bg: 'bg-orange-500/5', border: 'border-orange-500/20', text: 'text-orange-400', activeBg: 'bg-orange-500/15', gradient: 'from-orange-500/10 to-transparent', btnFrom: 'from-orange-500', btnTo: 'to-orange-600', shadow: 'shadow-orange-500/20' },
-                                            blue: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-400', activeBg: 'bg-blue-500/15', gradient: 'from-blue-500/10 to-transparent', btnFrom: 'from-blue-500', btnTo: 'to-blue-600', shadow: 'shadow-blue-500/20' },
-                                            indigo: { bg: 'bg-indigo-500/5', border: 'border-indigo-500/20', text: 'text-indigo-400', activeBg: 'bg-indigo-500/15', gradient: 'from-indigo-500/10 to-transparent', btnFrom: 'from-indigo-500', btnTo: 'to-indigo-600', shadow: 'shadow-indigo-500/20' },
-                                          };
-                                          const colors = colorMap[alt.color] || colorMap.orange;
-                                          const isSelected = selectedPlatform === idx;
-                                          
-                                          const originalPrice = messages.find(msg => msg.proposal?.type === 'affordability_result')?.proposal?.price || 1;
-                                          const savePercent = Math.round((originalPrice - alt.price) / originalPrice * 100);
-
-                                          const PlatformIcon = alt.platform.toLowerCase().includes('shopee') ? ShoppingBag : 
-                                                               alt.platform.toLowerCase().includes('lazada') ? Store : Globe;
-
-                                          return (
-                                            <div key={idx} className="space-y-2">
-                                              <button
-                                                onClick={() => setSelectedPlatform(isSelected ? null : idx)}
-                                                className={cn(
-                                                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 text-left",
-                                                  isSelected 
-                                                    ? `${colors.activeBg} ${colors.border} ring-1 ring-white/10`
-                                                    : "bg-white/5 border-white/10 hover:bg-white/10"
-                                                )}
-                                              >
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm", colors.bg)}>
-                                                    <PlatformIcon className={cn("w-4 h-4", colors.text)} />
-                                                  </div>
-                                                  <div className="flex flex-col min-w-0">
-                                                    <span className={cn("text-[10px] font-bold uppercase tracking-wider whitespace-nowrap", isSelected ? colors.text : "text-white/90")}>
-                                                      {alt.platform}
-                                                    </span>
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                      <span className="text-[11px] font-black text-white shrink-0">RM {alt.price}</span>
-                                                      <Badge className="text-[6.5px] h-3 px-1 bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-bold shrink-0">
-                                                        Save {savePercent}%
-                                                      </Badge>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                <motion.div
-                                                  animate={{ rotate: isSelected ? 180 : 0 }}
-                                                  className="text-white/20 shrink-0 ml-2"
-                                                >
-                                                  <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />
-                                                </motion.div>
-                                              </button>
-
-                                              <AnimatePresence>
-                                                {isSelected && (
-                                                  <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="overflow-hidden"
-                                                  >
-                                                    <div className={cn("p-3 rounded-xl bg-gradient-to-br border border-white/10 flex flex-col gap-3", colors.gradient)}>
-                                                      {/* Big Product Image */}
-                                                      <div className="w-full aspect-[16/10] rounded-lg overflow-hidden border border-white/10 bg-black/20">
-                                                        <img src={alt.image} alt={alt.name} className="w-full h-full object-cover" />
-                                                      </div>
-
-                                                      {/* Product Info Stack */}
-                                                      <div className="space-y-0.5">
-                                                        <p className="text-[11px] text-white font-bold leading-tight">{alt.name}</p>
-                                                        <p className="text-[9px] text-white/50">{alt.condition}</p>
-                                                      </div>
-
-                                                      {/* Interactive Row (Pills in one row) */}
-                                                      <div className="flex items-center gap-1.5 pt-1">
-                                                        <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0">
-                                                          <span className="text-[10px] font-black text-white">RM {alt.price}</span>
-                                                        </div>
-                                                        <Button 
-                                                          asChild
-                                                          className={cn("h-8 px-4 flex-1 bg-gradient-to-r text-white text-[10px] font-black gap-2 rounded-full shadow-lg shrink-0", colors.btnFrom, colors.btnTo, colors.shadow)}
-                                                        >
-                                                          <a href={alt.link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
-                                                            View Item <ExternalLink className="w-3 h-3 ml-1" />
-                                                          </a>
-                                                        </Button>
-                                                      </div>
-                                                    </div>
-                                                  </motion.div>
-                                                )}
-                                              </AnimatePresence>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                ) : m.proposal.type === 'create_pocket' ? (
-                                  <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
-                                          {m.proposal.icon}
-                                        </div>
-                                        <div className="flex-1">
-                                          <p className="text-xs font-bold text-white">{m.proposal.name}</p>
-                                          <p className="text-[9px] text-muted-foreground">Target: RM {m.proposal.target}</p>
-                                        </div>
-                                        <Badge className="text-[7px] h-3 bg-emerald-500/20 text-emerald-500 border-emerald-500/20 px-1 font-black">
-                                          {m.proposal.mode.toUpperCase()}
-                                        </Badge>
-                                      </div>
-
-                                      <div className="space-y-1.5">
-                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
-                                        <Input 
-                                          type="number" 
-                                          value={m.proposal.current !== undefined ? m.proposal.current : (i === messages.length - 1 ? saveDeposit : "")} 
-                                          onChange={(e) => setSaveDeposit(e.target.value)}
+                                    <div className="space-y-3">
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Item Name</label>
+                                        <Input
+                                          placeholder="e.g. New Shoes"
+                                          value={m.proposal.item || (i === messages.length - 1 ? affordItem : "")}
+                                          onChange={(e) => setAffordItem(e.target.value)}
                                           disabled={isExecuting || i < messages.length - 1}
                                           className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
                                         />
-                                        <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Price (RM)</label>
+                                        <Input
+                                          type="number"
+                                          placeholder="0.00"
+                                          value={m.proposal.price || (i === messages.length - 1 ? affordPrice : "")}
+                                          onChange={(e) => setAffordPrice(e.target.value)}
+                                          disabled={isExecuting || i < messages.length - 1}
+                                          className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                        />
                                       </div>
 
                                       {i === messages.length - 1 && (
-                                        <div className="flex gap-2">
-                                          <Button 
-                                            className="flex-1 h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                                            onClick={() => handleAction({ 
-                                              id: 'approve_save', 
-                                              label: 'Approve & Deposit', 
-                                              type: 'create_pocket',
-                                              payload: { ...m.proposal, current: parseFloat(saveDeposit) || 0 }
-                                            })}
-                                            disabled={isExecuting}
-                                          >
-                                            {isExecuting ? "Processing..." : "Approve"}
-                                          </Button>
-                                          <Button 
-                                            variant="outline"
-                                            className="flex-1 h-8 text-[10px] border-white/10 text-white"
-                                            onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
-                                            disabled={isExecuting}
-                                          >
-                                            Decline
-                                          </Button>
-                                        </div>
+                                        <Button
+                                          className="w-full h-8 text-[10px] bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                                          onClick={() => handleAction({ id: 'sim_afford', label: 'Simulate', type: 'simulate_affordability' })}
+                                          disabled={!affordPrice || isExecuting}
+                                        >
+                                          {isExecuting ? "Simulating..." : "Simulate Impact"}
+                                        </Button>
                                       )}
-                                    </CardContent>
-                                  </Card>
-                                ) : (
-                                  <Card className="glass-card bg-slate-900/40 border-primary/20 overflow-hidden">
-                                    <CardContent className="p-4 space-y-3">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-xl">
-                                          {m.proposal.icon || (m.proposal.type === 'transfer' ? '💸' : '🎯')}
-                                        </div>
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2">
-                                            <p className="text-xs font-bold text-white">{m.proposal.name || (m.proposal.type === 'transfer' ? 'Transfer' : 'Pocket')}</p>
-                                            <Badge className="text-[7px] h-3 bg-primary/20 text-primary border-primary/20 px-1 font-black">
-                                              {m.proposal.type === 'transfer' ? 'Verified' : 'Managed'}
-                                            </Badge>
-                                          </div>
-                                          <div className="flex items-center justify-between mt-0.5">
-                                            {m.proposal.type === 'transfer' ? (
-                                              <p className="text-[9px] text-muted-foreground">{m.proposal.bank} • 3188 **** 1100</p>
-                                            ) : (
-                                              <p className="text-[9px] text-muted-foreground">RM {m.proposal.current} / RM {m.proposal.target}</p>
-                                            )}
-                                          </div>
-                                        </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ) : m.proposal.type === 'affordability_result' ? (
+                                <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-3">
+                                    {/* Status Header */}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                          "w-2 h-2 rounded-full animate-pulse",
+                                          m.proposal.recommendation === "Avoid" ? "bg-rose-500" :
+                                            m.proposal.recommendation === "Caution" ? "bg-amber-500" : "bg-emerald-500"
+                                        )} />
+                                        <p className="text-[10px] font-bold text-white">{m.proposal.item}</p>
                                       </div>
-                                      
-                                      {m.proposal.type !== 'transfer' && m.proposal.target && (
-                                        <div className="space-y-1.5">
-                                          <div className="flex justify-between items-center text-[9px]">
-                                            <span className="text-primary/80 font-bold capitalize">({m.proposal.riskLevel || 'Low'} Risk)</span>
-                                            <span className="font-bold text-primary">{Math.round((m.proposal.current / m.proposal.target) * 100)}%</span>
-                                          </div>
-                                          <div className="h-1 w-full bg-primary/10 rounded-full overflow-hidden">
-                                            <div 
-                                              className="h-full bg-primary" 
-                                              style={{ width: `${(m.proposal.current / m.proposal.target) * 100}%` }}
-                                            />
-                                          </div>
-                                        </div>
-                                      )}
+                                      <Badge className={cn(
+                                        "text-[7px] h-4 px-2 font-black uppercase tracking-wider border",
+                                        m.proposal.recommendation === "Avoid"
+                                          ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                                          : m.proposal.recommendation === "Caution"
+                                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                      )}>
+                                        {m.proposal.recommendation === "Avoid" ? "Not Recommended" :
+                                          m.proposal.recommendation === "Caution" ? "Proceed with Care" : "Good to Go"}
+                                      </Badge>
+                                    </div>
 
-                                      {m.proposal.type === 'transfer' && (
-                                        <div className="flex justify-between items-center text-[9px] py-1">
-                                          <span className="text-muted-foreground">Amount to send</span>
-                                          <span className="text-white font-bold">RM {m.proposal.amount?.toFixed(2)}</span>
-                                        </div>
-                                      )}
-
-                                      <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                                        <span className="text-[8px] text-emerald-500 font-bold flex items-center gap-1">
-                                          {m.proposal.type === 'transfer' ? <Send className="w-2 h-2" /> : <TrendingUp className="w-2 h-2" />}
-                                          {m.proposal.type === 'transfer' ? 'Security Cleared' : 'Growth Enabled'}
-                                        </span>
-                                        <span className="text-[8px] text-primary font-bold uppercase tracking-wider">Proposal Preview</span>
+                                    {/* Metrics Row */}
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                      <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                        <p className="text-[7px] text-muted-foreground uppercase font-bold">Price</p>
+                                        <p className="text-[11px] font-bold text-white">RM {m.proposal.price?.toLocaleString()}</p>
                                       </div>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                              </motion.div>
-                            )}
+                                      <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                        <p className="text-[7px] text-muted-foreground uppercase font-bold">Daily After</p>
+                                        <p className={cn("text-[11px] font-bold",
+                                          parseFloat(m.proposal.newDailySpend) < 5 ? "text-rose-400" :
+                                            parseFloat(m.proposal.newDailySpend) < 12 ? "text-amber-400" : "text-emerald-400"
+                                        )}>RM {m.proposal.newDailySpend}</p>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-center">
+                                        <p className="text-[7px] text-muted-foreground uppercase font-bold">% Balance</p>
+                                        <p className={cn("text-[11px] font-bold",
+                                          (m.proposal.price / user.currentBalance * 100) > 30 ? "text-rose-400" : "text-emerald-400"
+                                        )}>{Math.round(m.proposal.price / user.currentBalance * 100)}%</p>
+                                      </div>
+                                    </div>
 
-                            {m.actions && m.actions.length > 0 && (
-                              <div className="flex gap-2 mt-1 w-full max-w-[280px]">
-                                {m.actions.map((action: ChatAction) => (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => handleAction(action)}
-                                    className={cn(
-                                      "flex-1 text-[10px] font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 text-center",
-                                      (action.type === 'create_pocket' || action.type === 'transfer')
-                                        ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20" 
-                                        : "bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20"
+                                    {/* Advice */}
+                                    <p className="text-[9px] text-white/60 leading-relaxed">
+                                      {m.proposal.adviceSummary}
+                                    </p>
+
+                                    {/* Handoff indicator for risky purchases */}
+                                    {(m.proposal.recommendation === "Avoid" || m.proposal.recommendation === "Caution") && (
+                                      <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+                                        <Brain className="w-3 h-3 text-amber-500 animate-pulse" />
+                                        <p className="text-[8px] text-amber-400 font-bold">Handing off to Finance Strategist...</p>
+                                      </div>
                                     )}
-                                  >
-                                    {action.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
+                                  </CardContent>
+                                </Card>
+                              ) : m.proposal.type === 'strategist_alternative' ? (
+                                <Card className="glass-card bg-slate-900/40 border-amber-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-3">
+                                    {/* Strategist Header */}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                          <Brain className="w-3.5 h-3.5 text-amber-500" />
+                                        </div>
+                                        <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Marketplace Comparison</p>
+                                      </div>
+                                      <Badge className="text-[7px] h-4 px-2 bg-amber-500/10 text-amber-400 border-amber-500/20 font-bold">
+                                        {m.proposal.alternatives?.length} options
+                                      </Badge>
+                                    </div>
 
-                  {(isThinking || isExecuting) && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-2">
-                      <div className="flex gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border bg-primary/10 border-primary/20">
-                          <Pet animation="think" size={32} />
-                        </div>
-                        <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-white/5 flex gap-1 items-center shadow-sm">
-                          <span className="w-1 h-1 bg-primary rounded-full animate-bounce" />
-                          <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                          <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
-                          <span className="text-[9px] text-muted-foreground ml-2 font-medium">
-                            {isExecuting ? "Executing secure transaction..." : "Council is deliberating..."}
-                          </span>
+                                    <p className="text-[8px] text-white/40">Safe limit: RM {m.proposal.budgetLimit} (30% of balance). Tap to expand:</p>
+
+                                    {/* Platform Accordion Stack */}
+                                    <div className="space-y-2">
+                                      {m.proposal.alternatives?.map((alt: any, idx: number) => {
+                                        const colorMap: Record<string, { bg: string; border: string; text: string; activeBg: string; gradient: string; btnFrom: string; btnTo: string; shadow: string }> = {
+                                          orange: { bg: 'bg-orange-500/5', border: 'border-orange-500/20', text: 'text-orange-400', activeBg: 'bg-orange-500/15', gradient: 'from-orange-500/10 to-transparent', btnFrom: 'from-orange-500', btnTo: 'to-orange-600', shadow: 'shadow-orange-500/20' },
+                                          blue: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-400', activeBg: 'bg-blue-500/15', gradient: 'from-blue-500/10 to-transparent', btnFrom: 'from-blue-500', btnTo: 'to-blue-600', shadow: 'shadow-blue-500/20' },
+                                          indigo: { bg: 'bg-indigo-500/5', border: 'border-indigo-500/20', text: 'text-indigo-400', activeBg: 'bg-indigo-500/15', gradient: 'from-indigo-500/10 to-transparent', btnFrom: 'from-indigo-500', btnTo: 'to-indigo-600', shadow: 'shadow-indigo-500/20' },
+                                        };
+                                        const colors = colorMap[alt.color] || colorMap.orange;
+                                        const isSelected = selectedPlatform === idx;
+
+                                        const originalPrice = messages.find(msg => msg.proposal?.type === 'affordability_result')?.proposal?.price || 1;
+                                        const savePercent = Math.round((originalPrice - alt.price) / originalPrice * 100);
+
+                                        const PlatformIcon = alt.platform.toLowerCase().includes('shopee') ? ShoppingBag :
+                                          alt.platform.toLowerCase().includes('lazada') ? Store : Globe;
+
+                                        return (
+                                          <div key={idx} className="space-y-2">
+                                            <button
+                                              onClick={() => setSelectedPlatform(isSelected ? null : idx)}
+                                              className={cn(
+                                                "w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200 text-left",
+                                                isSelected
+                                                  ? `${colors.activeBg} ${colors.border} ring-1 ring-white/10`
+                                                  : "bg-white/5 border-white/10 hover:bg-white/10"
+                                              )}
+                                            >
+                                              <div className="flex items-center gap-3 min-w-0">
+                                                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm", colors.bg)}>
+                                                  <PlatformIcon className={cn("w-4 h-4", colors.text)} />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                  <span className={cn("text-[10px] font-bold uppercase tracking-wider whitespace-nowrap", isSelected ? colors.text : "text-white/90")}>
+                                                    {alt.platform}
+                                                  </span>
+                                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="text-[11px] font-black text-white shrink-0">RM {alt.price}</span>
+                                                    <Badge className="text-[6.5px] h-3 px-1 bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-bold shrink-0">
+                                                      Save {savePercent}%
+                                                    </Badge>
+                                                  </div>
+                                                </div>
+                                              </div>
+
+                                              <motion.div
+                                                animate={{ rotate: isSelected ? 180 : 0 }}
+                                                className="text-white/20 shrink-0 ml-2"
+                                              >
+                                                <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />
+                                              </motion.div>
+                                            </button>
+
+                                            <AnimatePresence>
+                                              {isSelected && (
+                                                <motion.div
+                                                  initial={{ opacity: 0, height: 0 }}
+                                                  animate={{ opacity: 1, height: 'auto' }}
+                                                  exit={{ opacity: 0, height: 0 }}
+                                                  className="overflow-hidden"
+                                                >
+                                                  <div className={cn("p-3 rounded-xl bg-gradient-to-br border border-white/10 flex flex-col gap-3", colors.gradient)}>
+                                                    {/* Big Product Image */}
+                                                    <div className="w-full aspect-[16/10] rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                                                      <img src={alt.image} alt={alt.name} className="w-full h-full object-cover" />
+                                                    </div>
+
+                                                    {/* Product Info Stack */}
+                                                    <div className="space-y-0.5">
+                                                      <p className="text-[11px] text-white font-bold leading-tight">{alt.name}</p>
+                                                      <p className="text-[9px] text-white/50">{alt.condition}</p>
+                                                    </div>
+
+                                                    {/* Interactive Row (Pills in one row) */}
+                                                    <div className="flex items-center gap-1.5 pt-1">
+                                                      <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0">
+                                                        <span className="text-[10px] font-black text-white">RM {alt.price}</span>
+                                                      </div>
+                                                      <Button
+                                                        asChild
+                                                        className={cn("h-8 px-4 flex-1 bg-gradient-to-r text-white text-[10px] font-black gap-2 rounded-full shadow-lg shrink-0", colors.btnFrom, colors.btnTo, colors.shadow)}
+                                                      >
+                                                        <a href={alt.link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
+                                                          View Item <ExternalLink className="w-3 h-3 ml-1" />
+                                                        </a>
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                </motion.div>
+                                              )}
+                                            </AnimatePresence>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ) : m.proposal.type === 'create_pocket' ? (
+                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                                        {m.proposal.icon}
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-xs font-bold text-white">{m.proposal.name}</p>
+                                        <p className="text-[9px] text-muted-foreground">Target: RM {m.proposal.target}</p>
+                                      </div>
+                                      <Badge className="text-[7px] h-3 bg-emerald-500/20 text-emerald-500 border-emerald-500/20 px-1 font-black">
+                                        {m.proposal.mode.toUpperCase()}
+                                      </Badge>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                      <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
+                                      <Input
+                                        type="number"
+                                        value={m.proposal.current !== undefined ? m.proposal.current : (i === messages.length - 1 ? saveDeposit : "")}
+                                        onChange={(e) => setSaveDeposit(e.target.value)}
+                                        disabled={isExecuting || i < messages.length - 1}
+                                        className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                      />
+                                      <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
+                                    </div>
+
+                                    {i === messages.length - 1 && (
+                                      <div className="flex gap-2">
+                                        <Button
+                                          className="flex-1 h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                          onClick={() => handleAction({
+                                            id: 'approve_save',
+                                            label: 'Approve & Deposit',
+                                            type: 'create_pocket',
+                                            payload: { ...m.proposal, current: parseFloat(saveDeposit) || 0 }
+                                          })}
+                                          disabled={isExecuting}
+                                        >
+                                          {isExecuting ? "Processing..." : "Approve"}
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          className="flex-1 h-8 text-[10px] border-white/10 text-white"
+                                          onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
+                                          disabled={isExecuting}
+                                        >
+                                          Decline
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              ) : (
+                                <Card className="glass-card bg-slate-900/40 border-primary/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-xl">
+                                        {m.proposal.icon || (m.proposal.type === 'transfer' ? '💸' : '🎯')}
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-xs font-bold text-white">{m.proposal.name || (m.proposal.type === 'transfer' ? 'Transfer' : 'Pocket')}</p>
+                                          <Badge className="text-[7px] h-3 bg-primary/20 text-primary border-primary/20 px-1 font-black">
+                                            {m.proposal.type === 'transfer' ? 'Verified' : 'Managed'}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-0.5">
+                                          {m.proposal.type === 'transfer' ? (
+                                            <p className="text-[9px] text-muted-foreground">{m.proposal.bank} • 3188 **** 1100</p>
+                                          ) : (
+                                            <p className="text-[9px] text-muted-foreground">RM {m.proposal.current} / RM {m.proposal.target}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {m.proposal.type !== 'transfer' && m.proposal.target && (
+                                      <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center text-[9px]">
+                                          <span className="text-primary/80 font-bold capitalize">({m.proposal.riskLevel || 'Low'} Risk)</span>
+                                          <span className="font-bold text-primary">{Math.round((m.proposal.current / m.proposal.target) * 100)}%</span>
+                                        </div>
+                                        <div className="h-1 w-full bg-primary/10 rounded-full overflow-hidden">
+                                          <div
+                                            className="h-full bg-primary"
+                                            style={{ width: `${(m.proposal.current / m.proposal.target) * 100}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {m.proposal.type === 'transfer' && (
+                                      <div className="flex justify-between items-center text-[9px] py-1">
+                                        <span className="text-muted-foreground">Amount to send</span>
+                                        <span className="text-white font-bold">RM {m.proposal.amount?.toFixed(2)}</span>
+                                      </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                                      <span className="text-[8px] text-emerald-500 font-bold flex items-center gap-1">
+                                        {m.proposal.type === 'transfer' ? <Send className="w-2 h-2" /> : <TrendingUp className="w-2 h-2" />}
+                                        {m.proposal.type === 'transfer' ? 'Security Cleared' : 'Growth Enabled'}
+                                      </span>
+                                      <span className="text-[8px] text-primary font-bold uppercase tracking-wider">Proposal Preview</span>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              )}
+                            </motion.div>
+                          )}
+
+                          {m.actions && m.actions.length > 0 && (
+                            <div className="flex gap-2 mt-1 w-full max-w-[280px]">
+                              {m.actions.map((action: ChatAction) => (
+                                <button
+                                  key={action.id}
+                                  onClick={() => handleAction(action)}
+                                  className={cn(
+                                    "flex-1 text-[10px] font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 text-center",
+                                    (action.type === 'create_pocket' || action.type === 'transfer')
+                                      ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20"
+                                      : "bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20"
+                                  )}
+                                >
+                                  {action.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  )
+                })}
+
+                {(isThinking || isExecuting) && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-2">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border bg-primary/10 border-primary/20">
+                        <Pet animation="think" size={32} />
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-white/5 flex gap-1 items-center shadow-sm">
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce" />
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+                        <span className="text-[9px] text-muted-foreground ml-2 font-medium">
+                          {isExecuting ? "Executing secure transaction..." : "Council is deliberating..."}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Sticky Chat Input Area — OUTSIDE the scroll container so it never disappears */}

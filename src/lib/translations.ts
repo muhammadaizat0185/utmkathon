@@ -67,7 +67,7 @@ type Translations = {
     settingsHelp: string
     settingsSecureSession: string
     settingsSignOut: string
-    
+
     // Logout Modal
     logoutReady: string
     logoutDesc: string
@@ -89,7 +89,7 @@ type Translations = {
     agentNameSpend: string
     agentNameCash: string
     agentNameDebt: string
-    
+
     agentFindingOrch: string
     agentFindingSpend: string
     agentFindingCash: string
@@ -283,7 +283,7 @@ export const t: Translations = {
     agentNameSpend: "Spending Sense Agent",
     agentNameCash: "Cashflow Prediction Agent",
     agentNameDebt: "Debt Shield Agent",
-    
+
     agentFindingOrch: "System nominal. Monitoring cashflow.",
     agentFindingSpend: "Food spending is 15% above average.",
     agentFindingCash: "Predicted broke date: 18 May",
@@ -343,7 +343,7 @@ export const t: Translations = {
     reportProjDesc: "Based on current cashflow agents.",
 
     // Coach Page
-    coachHeader: "Resilience Coach",
+    coachHeader: "GX Buddy",
     coachSubheader: "Ask me anything about your finances",
     coachInputPlaceholder: "Ask about your spending...",
     coachChipLimit: "Can I afford this purchase?",
@@ -474,7 +474,7 @@ export const t: Translations = {
     agentNameSpend: "Ejen Analisis Belanja",
     agentNameCash: "Ejen Ramalan Tunai",
     agentNameDebt: "Ejen Pelindung Hutang",
-    
+
     agentFindingOrch: "Sistem normal. Memantau aliran tunai.",
     agentFindingSpend: "Perbelanjaan makanan 15% lebih dari biasa.",
     agentFindingCash: "Tarikh pokai diramal: 18 Mei",

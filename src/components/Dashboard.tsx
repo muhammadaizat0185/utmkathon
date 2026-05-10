@@ -399,7 +399,7 @@ function PromoCarousel() {
     {
       image: `${basePath}/assets/PERSAKA-logo.jpeg`,
       label: "Organized by",
-      name: "UTM PERSAKA",
+      name: "PERSAKA UTM",
       tagline: "Persatuan Mahasiswa Sains Komputer",
       badge: "UTMxHackathon 2026",
       gradient: "from-rose-700/85 via-red-600/75 to-slate-700/80",
