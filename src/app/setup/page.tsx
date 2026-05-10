@@ -26,6 +26,7 @@ import {
   Info,
   Sparkles
 } from "lucide-react"
+import { Pet } from "@/components/ui/Pet"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
 
@@ -386,8 +387,8 @@ export default function SetupPage() {
               {step === 1 && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                      <User className="w-5 h-5" />
+                    <div className="w-12 h-12 flex items-center justify-center">
+                      <Pet animation="wave" size={48} />
                     </div>
                     <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Tell GX Youth about you</h2>
                   </div>
@@ -428,8 +429,8 @@ export default function SetupPage() {
               {step === 2 && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                      <Coins className="w-5 h-5" />
+                    <div className="w-12 h-12 flex items-center justify-center">
+                      <Pet animation="think" size={48} />
                     </div>
                     <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">How do you receive your money?</h2>
                   </div>
@@ -497,8 +498,8 @@ export default function SetupPage() {
                   {incomeSource === "fixed" && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                          <Layers className="w-5 h-5" />
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <Pet animation="happy" size={48} />
                         </div>
                         <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Recurring Income Details</h2>
                       </div>
@@ -589,8 +590,8 @@ export default function SetupPage() {
                   {incomeSource === "lump-sum" && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                          <Coins className="w-5 h-5" />
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <Pet animation="excited" size={48} />
                         </div>
                         <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Lump Sum Details</h2>
                       </div>
@@ -667,8 +668,8 @@ export default function SetupPage() {
                   {(incomeSource === "irregular" || incomeSource === "none") && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                          {incomeSource === "irregular" ? <Briefcase className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <Pet animation="walk" size={48} />
                         </div>
                         <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
                           {incomeSource === "irregular" ? "Savings & Irregular Funds" : "Current Savings Balance"}
@@ -740,8 +741,8 @@ export default function SetupPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                        <CreditCard className="w-4 h-4" />
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <Pet animation="blink" size={40} />
                       </div>
                       <div>
                         <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Fixed commitments</h2>
@@ -836,8 +837,8 @@ export default function SetupPage() {
               {step === 5 && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-[rgb(147,51,234)] dark:text-purple-300">
-                      <Target className="w-5 h-5" />
+                    <div className="w-12 h-12 flex items-center justify-center">
+                      <Pet animation="run" size={48} />
                     </div>
                     <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Main savings goal</h2>
                   </div>

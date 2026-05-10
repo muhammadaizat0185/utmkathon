@@ -49,7 +49,7 @@ export function Settings() {
       <header className="flex flex-col items-center space-y-3 pt-6">
         <div className="relative">
           <Avatar className="w-24 h-24 border-4 border-primary/20 p-1">
-            <AvatarImage src="" />
+            <AvatarImage src={user.avatar} />
             <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
               {user.name.charAt(0)}
             </AvatarFallback>

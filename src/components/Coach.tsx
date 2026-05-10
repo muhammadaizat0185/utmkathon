@@ -458,9 +458,11 @@ export function Coach() {
         loop 
         muted 
         playsInline 
+        preload="auto"
+        disablePictureInPicture
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 pointer-events-none"
       >
-        <source src="/assets/IMG_2531.MP4" type="video/mp4" />
+        <source src={`${basePath}/assets/IMG_2531.MP4`} type="video/mp4" />
       </video>
       {/* Top Header */}
       <header className="p-4 bg-black/40 backdrop-blur-xl border-b border-white/10 shadow-sm z-20 shrink-0">

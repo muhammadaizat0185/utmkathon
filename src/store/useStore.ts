@@ -172,6 +172,7 @@ interface ResilienceState {
     runwayDurationUnit?: string;
     totalCommitments?: number;
     cardLastFour?: string;
+    avatar?: string;
   };
   transactions: Transaction[];
   savingsPockets: SavingsPocket[];
@@ -319,6 +320,7 @@ export const initialStoreState = {
     currentEmergencyFund: 85,
     spendingPersonality: 'Food Overspender + Impulse Buyer',
     cardLastFour: '4292',
+    avatar: "/assets/pfp/user.png",
   },
   transactions: [],
   savingsPockets: [],

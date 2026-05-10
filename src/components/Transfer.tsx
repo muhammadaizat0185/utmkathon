@@ -13,12 +13,12 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 const CONTACTS = [
-  { id: '1', name: 'Ahmad Ali', bank: 'Maybank', account: '1622 **** 8899', color: 'bg-yellow-500', initials: 'AA' },
-  { id: '2', name: 'Khairul', bank: 'CIMB', account: '7021 **** 4422', color: 'bg-red-500', initials: 'KH' },
-  { id: '3', name: 'Aizat', bank: 'Public Bank', account: '3188 **** 1100', color: 'bg-rose-500', initials: 'AZ' },
-  { id: '4', name: 'Farhan', bank: 'RHB', account: '2144 **** 9911', color: 'bg-blue-600', initials: 'FH' },
-  { id: '5', name: 'Qaid', bank: 'Bank Islam', account: '1202 **** 5566', color: 'bg-emerald-600', initials: 'QA' },
-  { id: '6', name: 'Danial', bank: 'Hong Leong', account: '0011 **** 7788', color: 'bg-sky-500', initials: 'DN' },
+  { id: '1', name: 'Ahmad Ali', bank: 'Maybank', account: '1622 **** 8899', color: 'bg-yellow-500', initials: 'AA', avatar: '/assets/pfp/ahmad.png' },
+  { id: '2', name: 'Khairul', bank: 'CIMB', account: '7021 **** 4422', color: 'bg-red-500', initials: 'KH', avatar: '/assets/pfp/khairul.png' },
+  { id: '3', name: 'Aizat', bank: 'Public Bank', account: '3188 **** 1100', color: 'bg-rose-500', initials: 'AZ', avatar: '/assets/pfp/aizat.png' },
+  { id: '4', name: 'Farhan', bank: 'RHB', account: '2144 **** 9911', color: 'bg-blue-600', initials: 'FH', avatar: '/assets/pfp/farhan.png' },
+  { id: '5', name: 'Qaid', bank: 'Bank Islam', account: '1202 **** 5566', color: 'bg-emerald-600', initials: 'QA', avatar: '/assets/pfp/Qaid.png' },
+  { id: '6', name: 'Danial', bank: 'Hong Leong', account: '0011 **** 7788', color: 'bg-sky-500', initials: 'DN', avatar: '/assets/pfp/Danial.png' },
 ]
 
 interface TransferProposal {
@@ -205,13 +205,17 @@ export function Transfer() {
                 >
                   <div className="relative">
                     <div className={cn(
-                      "w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all duration-300",
+                      "w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all duration-300 overflow-hidden",
                       contact.color,
                       isSelected 
                         ? "scale-105 ring-[3px] ring-primary ring-offset-2 ring-offset-background shadow-lg" 
                         : "opacity-50 scale-95"
                     )}>
-                      {contact.initials}
+                      {contact.avatar ? (
+                        <img src={contact.avatar} alt={contact.name} className="w-full h-full object-cover" />
+                      ) : (
+                        contact.initials
+                      )}
                     </div>
                     <AnimatePresence>
                       {isSelected && (
@@ -247,8 +251,12 @@ export function Transfer() {
               transition={{ duration: 0.2 }}
             >
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-foreground/[0.03] border border-border">
-                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0", selectedRecipient.color)}>
-                  {selectedRecipient.initials}
+                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden", selectedRecipient.color)}>
+                  {selectedRecipient.avatar ? (
+                    <img src={selectedRecipient.avatar} alt={selectedRecipient.name} className="w-full h-full object-cover" />
+                  ) : (
+                    selectedRecipient.initials
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-foreground truncate">{selectedRecipient.name}</p>
@@ -453,8 +461,12 @@ export function Transfer() {
                         return (
                           <>
                             <div className="flex items-center gap-3">
-                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold", rec.color)}>
-                                {rec.initials}
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold overflow-hidden", rec.color)}>
+                                {rec.avatar ? (
+                                  <img src={rec.avatar} alt={rec.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  rec.initials
+                                )}
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
