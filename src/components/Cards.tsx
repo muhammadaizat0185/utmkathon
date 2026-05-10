@@ -7,8 +7,10 @@ import { CreditCard, Plus, ShieldCheck, Zap, ArrowUpRight, History, Eye, EyeOff,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { useStore } from "@/store/useStore"
 
 export function Cards() {
+  const { user } = useStore()
   const [isDetailsVisible, setIsDetailsVisible] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [password, setPassword] = useState("")
@@ -49,8 +51,8 @@ export function Cards() {
           <h1 className="text-2xl font-bold">My Cards</h1>
           <p className="text-xs text-muted-foreground">Manage your virtual and physical cards</p>
         </div>
-        <button className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-          <Plus className="w-5 h-5" />
+        <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-slate-900 shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all">
+          <Plus className="w-6 h-6" />
         </button>
       </header>
 
@@ -156,12 +158,19 @@ export function Cards() {
                 <p className="text-[10px] opacity-70 uppercase tracking-widest font-bold">Virtual Card</p>
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
-                  <p className="text-lg font-bold">Resilience Platinum</p>
+                  <p className="text-lg font-bold">GXbank card</p>
                 </div>
               </div>
-              <div className="w-12 h-8 bg-white/20 rounded-lg backdrop-blur-md border border-white/30 flex items-center justify-center">
-                <span className="text-[8px] font-black italic">BEYOND</span>
-              </div>
+              <h1 className="text-xl font-black tracking-tight" style={{
+                background: "linear-gradient(135deg, #FFFFFF 0%, rgba(255,255,255,0.85) 50%, rgba(139,92,246,0.6) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                textShadow: "none",
+                filter: "drop-shadow(0 0 20px rgba(139,92,246,0.2))"
+              }}>
+                GX Youth
+              </h1>
             </div>
 
             <div className="space-y-4">
@@ -206,7 +215,7 @@ export function Cards() {
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-[8px] opacity-70 uppercase tracking-tighter">Card Holder</p>
-                  <p className="text-sm font-medium uppercase tracking-wide">MUHAMMAD HAZIQ</p>
+                  <p className="text-sm font-medium uppercase tracking-wide">{user?.name || "MUHAMMAD HAZIQ"}</p>
                 </div>
                 <div className="flex gap-6">
                   <div className="text-right">

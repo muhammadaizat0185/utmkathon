@@ -10,22 +10,19 @@ import {
   ShieldCheck, 
   CalendarClock, 
   Zap, 
-  AlertCircle,
-  CheckCircle2,
-  Clock,
   Settings2,
   RefreshCcw
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useState, useMemo } from "react"
 import { BillCard } from "./bills/BillCard"
-import { AddBillModal } from "./bills/AddBillModal"
+import { BillSetupModal } from "./bills/BillSetupModal"
 import Link from "next/link"
 import { Badge } from "./ui/badge"
+import { cn } from "@/lib/utils"
 
 export function Bills() {
-  const { bills, language, user, processAutoPay } = useStore()
+  const { bills, language, processAutoPay } = useStore()
   const strings = t[language]
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
@@ -61,14 +58,20 @@ export function Bills() {
   return (
     <div className="p-4 space-y-6 pb-24 max-w-lg mx-auto text-white">
       {/* Header */}
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex items-center justify-between gap-4 pt-2">
         <Link href="/dashboard" className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-black tracking-tight text-white">{strings.billsHeader}</h1>
-          <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest">{strings.billsSubheader}</p>
+          <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest leading-tight">PROTECT YOUR ESSENTIALS</p>
         </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-slate-900 shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
       </header>
 
       {/* Top Summary Cards */}
@@ -98,7 +101,7 @@ export function Bills() {
         </div>
       </div>
 
-      {/* AutoPay Status Banner if needed */}
+      {/* Status Banner */}
       {needsSetupCount > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -141,7 +144,7 @@ export function Bills() {
         </button>
       </div>
 
-      {/* Bill List */}
+      {/* List */}
       <div className="space-y-4 min-h-[300px]">
         <AnimatePresence mode="wait">
           <motion.div
@@ -157,8 +160,8 @@ export function Bills() {
             ))}
 
             {(activeTab === 'upcoming' ? upcomingBills : paidBills).length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center py-12 text-white/20 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
                   <ReceiptText className="w-8 h-8 opacity-20" />
                 </div>
                 <p className="text-sm font-medium">No {activeTab} bills found</p>
@@ -169,24 +172,19 @@ export function Bills() {
       </div>
 
       {/* Footer Actions */}
-      <div className="flex gap-3">
-        <button 
-          className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-all"
-          onClick={() => setShowAddModal(true)}
-        >
-          <Plus className="w-5 h-5" />
-          {strings.billsAdd}
-        </button>
-        <Button 
-          variant="outline"
-          className="h-14 w-14 rounded-2xl border-slate-200 bg-white"
+      <div className="flex justify-center">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => processAutoPay()}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/30 hover:text-white transition-all hover:bg-white/10"
         >
-          <RefreshCcw className="w-5 h-5 text-slate-500" />
-        </Button>
+          <RefreshCcw className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Process Simulated AutoPay</span>
+        </motion.button>
       </div>
 
-      <AddBillModal 
+      <BillSetupModal 
         isOpen={showAddModal} 
         onClose={handleCloseModal}
         editingBill={editingBill}
