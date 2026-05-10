@@ -1,6 +1,6 @@
-# Resilience Agent — System Architecture
+# GX Youth — System Architecture
 
-> Last reviewed: 2026-05-05
+> Last reviewed: 2026-05-10
 
 ## High-Level Overview
 
@@ -103,11 +103,12 @@ User taps PAY (Navbar)
   → router.push("/dashboard")
 ```
 
-### State Mutation
+### State Mutation & Hydration
 All state changes go through Zustand actions. No API calls, no persistence:
 ```
 UI Event → Zustand action (addTransaction / toggleBudgetGuard) → re-render
 ```
+On initial load (hydration), components like `Dashboard.tsx` trigger `processAutoSave()`, `simulateGrowth()`, and `checkAndRefreshDailyQuota()` to synchronize the store with the simulated passage of time.
 
 ## Frontend Structure
 
@@ -126,15 +127,18 @@ UI Event → Zustand action (addTransaction / toggleBudgetGuard) → re-render
 
 | Component | Role |
 |---|---|
-| `Dashboard.tsx` | Stats, quick actions, AI insights, mini transaction list |
+| `Dashboard.tsx` | Stats, quick actions, AI insights, mini transaction list. Triggers core simulations on hydration. |
 | `Scanner.tsx` | QR pay simulation + AI cashflow intercept |
 | `Transfer.tsx` | Derived cashflow prediction (no `useEffect`) |
-| `Coach.tsx` | Chat UI with suggestion chips + simulated AI replies |
+| `Coach.tsx` | Chat UI with suggestion chips + simulated AI replies. Handles vertical marketplace comparisons and task cleanup. |
 | `AgentCommandCenter.tsx` | Read-only agent status cards from store |
 | `DebtShield.tsx` | Debt risk display + Budget Guard / Survival Mode toggles |
 | `Reports.tsx` | Recharts PieChart + milestone cards |
 | `Settings.tsx` | Preferences toggles + AnimatePresence logout modal |
 | `BudgetGuardModal.tsx` | Modal launched from Dashboard insight card |
+
+### Coach Task Management (Reset & Replace)
+The `Coach.tsx` component (GX Buddy) implements a smart conversational UI. When users trigger specific task flows (e.g., Affordability Simulators, Savings Deposits, Transfers), the `sendMessage` function scans the chat history and removes previous, unsubmitted task cards of the same type. This "Reset & Replace" pattern prevents the UI from stacking redundant interactive forms and ensures users always interact with the most current task state.
 
 ## Authentication / Authorization
 
