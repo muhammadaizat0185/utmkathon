@@ -1,6 +1,6 @@
 "use client"
 
-import { useStore } from "@/store/useStore"
+import { useStore, initialStoreState } from "@/store/useStore"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
@@ -242,10 +242,14 @@ export default function SetupPage() {
         createdAt: new Date().toISOString()
       }));
 
+      // Generate a randomized 4-digit card suffix
+      const randomLastFour = Math.floor(1000 + Math.random() * 9000).toString()
+
       // Update Zustand store fields cleanly
       useStore.setState((state) => ({
+        ...initialStoreState,
         user: {
-          ...state.user,
+          ...initialStoreState.user,
           name: name,
           type: employmentStatus,
           monthlyAllowance: Math.round(incomeSource === "fixed" ? totalAmount : (totalAmount / periodMonths)),
@@ -262,6 +266,7 @@ export default function SetupPage() {
           runwayDuration: safeRunwayDuration,
           runwayDurationUnit: runwayDurationUnit,
           totalCommitments: totalCommitments,
+          cardLastFour: randomLastFour,
         },
         bills: initialBills as any[],
         safeDailySpend: calculatedDailySafe > 0 ? calculatedDailySafe : 15.0,

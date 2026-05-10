@@ -36,8 +36,43 @@ const marketData = [
 ]
 
 export function Reports() {
-  const { resilienceScore, language, debtRiskScore } = useStore()
+  const { resilienceScore, language, debtRiskScore, savingsPockets } = useStore()
   const bills = useStore(state => state.bills)
+
+  // 1. Dynamic Savings Rate Calculation from Savings page
+  const totalSavingsCurrent = savingsPockets.reduce((sum, p) => sum + p.current, 0)
+  const totalSavingsTarget = savingsPockets.reduce((sum, p) => sum + p.target, 0)
+  const overallSavingsProgress = totalSavingsTarget > 0 ? Math.round((totalSavingsCurrent / totalSavingsTarget) * 100) : 0
+
+  const defaultHeights = [40, 60, 30, 80, 50, 70, 90]
+  const dynamicSavingsHeights = defaultHeights.map((fallback, idx) => {
+    if (idx < savingsPockets.length) {
+      const pocket = savingsPockets[idx]
+      return pocket.target > 0 ? Math.min(100, Math.max(10, Math.round((pocket.current / pocket.target) * 100))) : 0
+    }
+    return fallback
+  })
+
+  // 2. Dynamic Debt Health based on Dashboard Resilience Score
+  let resilienceRating = "At Risk"
+  if (resilienceScore >= 75) {
+    resilienceRating = "Strong"
+  } else if (resilienceScore >= 50) {
+    resilienceRating = "Healthy"
+  } else {
+    resilienceRating = "Weak"
+  }
+
+  // 3. Dynamic Resilience Trend Graph tracking Today's Score
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const todayName = dayNames[new Date().getDay()]
+
+  const dynamicSpendingData = spendingData.map(item => {
+    if (item.name === todayName) {
+      return { ...item, amount: resilienceScore }
+    }
+    return item
+  })
   
   const lockedAmount = bills
     .filter(b => b.isLocked && b.status !== 'paid')
@@ -61,11 +96,11 @@ export function Reports() {
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <Target className="w-4 h-4 text-emerald-500" />
-              <Badge className="text-[8px] bg-emerald-500/10 text-emerald-500 border-none">+12%</Badge>
+              <Badge className="text-[8px] bg-emerald-500/10 text-emerald-500 border-none">+{overallSavingsProgress}%</Badge>
             </div>
             <p className="text-[10px] font-bold">Savings Rate</p>
             <div className="h-8 flex items-end gap-1">
-              {[40, 60, 30, 80, 50, 70, 90].map((h, i) => (
+              {dynamicSavingsHeights.map((h, i) => (
                 <div key={i} className="flex-1 bg-emerald-500/20 rounded-t-sm" style={{ height: `${h}%` }} />
               ))}
             </div>
@@ -75,15 +110,15 @@ export function Reports() {
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <Shield className="w-4 h-4 text-purple-500" />
-              <Badge className="text-[8px] bg-purple-500/10 text-purple-500 border-none">Healthy</Badge>
+              <Badge className="text-[8px] bg-purple-500/10 text-purple-500 border-none">{resilienceRating}</Badge>
             </div>
             <p className="text-[10px] font-bold">Debt Health</p>
             <div className="space-y-1.5 pt-2">
               <div className="flex justify-between text-[8px] font-bold">
                 <span>Score</span>
-                <span>{debtRiskScore}/100</span>
+                <span>{resilienceScore}/100</span>
               </div>
-              <Progress value={debtRiskScore} className="h-1 bg-purple-500/10" />
+              <Progress value={resilienceScore} className="h-1 bg-purple-500/10" />
             </div>
           </CardContent>
         </Card>
@@ -98,7 +133,7 @@ export function Reports() {
         </CardHeader>
         <CardContent className="p-0 h-48 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={spendingData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+            <LineChart data={dynamicSpendingData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
               <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
