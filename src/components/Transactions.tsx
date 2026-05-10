@@ -13,7 +13,7 @@ export function Transactions() {
   const { transactions, user } = useStore()
   const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredTransactions = transactions.filter(t => 
+  const filteredTransactions = transactions.filter(t =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.category.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -35,14 +35,14 @@ export function Transactions() {
 
       <div className="relative group">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-        <input 
-          placeholder="Search transactions..." 
+        <input
+          placeholder="Search transactions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-foreground/5 border border-border rounded-2xl h-12 pl-10 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-muted-foreground/50"
         />
         {searchQuery && (
-          <button 
+          <button
             onClick={() => setSearchQuery("")}
             className="absolute right-10 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -60,13 +60,14 @@ export function Transactions() {
                 <CardContent className="p-4 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-xl">
-                      {t.type === 'income' ? '💰' : 
-                       t.category === 'Food' ? '🍱' : 
-                       t.category === 'Transport' ? '🚗' : 
-                       t.category === 'Housing' ? '🏠' : 
-                       t.category === 'Utilities' ? '📱' :
-                       t.category === 'Education' ? '🎓' :
-                       t.category === 'Entertainment' ? '📺' : '🛍️'}
+                      {t.type === 'saving' ? '🛡️' :
+                        t.type === 'income' ? '💰' :
+                          t.category === 'Food' ? '🍱' :
+                            t.category === 'Transport' ? '🚗' :
+                              t.category === 'Housing' ? '🏠' :
+                                t.category === 'Utilities' ? '📱' :
+                                  t.category === 'Education' ? '🎓' :
+                                    t.category === 'Entertainment' ? '📺' : '🛍️'}
                     </div>
                     <div>
                       <p className="text-xs font-bold">{t.title}</p>
@@ -81,9 +82,9 @@ export function Transactions() {
                   <div className="text-right">
                     <p className={cn(
                       "text-sm font-bold",
-                      t.type === 'expense' ? "text-rose-500" : "text-emerald-500"
+                      t.type === 'expense' ? "text-rose-500" : t.type === 'saving' ? "text-amber-400" : "text-emerald-500"
                     )}>
-                      {t.type === 'expense' ? '-' : '+'}RM {t.amount.toFixed(2)}
+                      {t.type === 'expense' ? '- RM' : t.type === 'saving' ? 'RM' : '+ RM'}{t.amount.toFixed(2)}
                     </p>
                     <p className="text-[9px] text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
                   </div>

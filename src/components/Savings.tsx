@@ -246,7 +246,7 @@ export function Savings() {
                   </div>
                   <Progress 
                     value={(pocket.current / pocket.target) * 100} 
-                    className={cn("h-2", isGrowth && "bg-primary/10", isMain && "[&>div]:bg-purple-500 bg-purple-500/10")} 
+                    className={cn("h-2", isGrowth && "bg-primary/10", isMain && "[&_[data-slot=progress-indicator]]:bg-purple-500 [&_[data-slot=progress-track]]:bg-purple-500/15")} 
                   />
                 </div>
 

@@ -245,6 +245,39 @@ export default function SetupPage() {
       // Generate a randomized 4-digit card suffix
       const randomLastFour = Math.floor(1000 + Math.random() * 9000).toString()
 
+      // Create initial main goal pocket dynamically
+      const goalMap: Record<string, { target: number; icon: string }> = {
+        "Emergency Fund": { target: 500, icon: "🛡️" },
+        "Laptop Fund": { target: 2500, icon: "💻" },
+        "Rent Buffer": { target: 400, icon: "🏠" },
+        "Travel": { target: 1500, icon: "✈️" },
+        "Investment Starter": { target: 1000, icon: "📈" },
+        "Other": { target: 1000, icon: "✨" },
+      };
+      const chosen = goalMap[selectedGoal] || { target: 1000, icon: "✨" };
+      const initialPockets = [
+        {
+          id: "pocket-main",
+          name: selectedGoal,
+          target: chosen.target,
+          current: 0,
+          icon: chosen.icon,
+          mode: selectedGoal === "Investment Starter" ? ("growth" as const) : ("savings" as const),
+          isMainGoal: true
+        }
+      ];
+
+      // Create initial allowance transaction
+      const initialTx = {
+        id: "init-income-" + Date.now(),
+        title: incomeSource === "fixed" ? "Initial Allowance" : (incomeSource === "lump-sum" ? "Lump Sum Deposit" : "Initial Savings"),
+        amount: startBalance,
+        category: "Income",
+        date: new Date().toISOString(),
+        type: "income" as const,
+        confidence: 1.0
+      };
+
       // Update Zustand store fields cleanly
       useStore.setState((state) => ({
         ...initialStoreState,
@@ -269,9 +302,11 @@ export default function SetupPage() {
           cardLastFour: randomLastFour,
         },
         bills: initialBills as any[],
+        transactions: [initialTx],
+        savingsPockets: initialPockets,
         safeDailySpend: calculatedDailySafe > 0 ? calculatedDailySafe : 15.0,
         initialSafeDaily: calculatedDailySafe > 0 ? calculatedDailySafe : 15.0,
-        pendingMainGoal: selectedGoal,
+        pendingMainGoal: null,
         hasNotificationSave: true,
       }))
 
