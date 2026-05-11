@@ -32,6 +32,7 @@ const QUICK_AMOUNTS = [5, 10, 20, 50]
 export function Transfer() {
   const router = useRouter()
   const { user, addTransaction, safeDailySpend } = useStore()
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""
   const [amount, setAmount] = useState("")
   const [reference, setReference] = useState("")
   const [selectedRecipient, setSelectedRecipient] = useState(CONTACTS[0])
@@ -212,7 +213,7 @@ export function Transfer() {
                         : "opacity-50 scale-95"
                     )}>
                       {contact.avatar ? (
-                        <img src={contact.avatar} alt={contact.name} className="w-full h-full object-cover" />
+                        <img src={`${basePath}${contact.avatar}`} alt={contact.name} className="w-full h-full object-cover" />
                       ) : (
                         contact.initials
                       )}
@@ -253,7 +254,7 @@ export function Transfer() {
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-foreground/[0.03] border border-border">
                 <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden", selectedRecipient.color)}>
                   {selectedRecipient.avatar ? (
-                    <img src={selectedRecipient.avatar} alt={selectedRecipient.name} className="w-full h-full object-cover" />
+                    <img src={`${basePath}${selectedRecipient.avatar}`} alt={selectedRecipient.name} className="w-full h-full object-cover" />
                   ) : (
                     selectedRecipient.initials
                   )}
@@ -463,7 +464,7 @@ export function Transfer() {
                             <div className="flex items-center gap-3">
                               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold overflow-hidden", rec.color)}>
                                 {rec.avatar ? (
-                                  <img src={rec.avatar} alt={rec.name} className="w-full h-full object-cover" />
+                                  <img src={`${basePath}${rec.avatar}`} alt={rec.name} className="w-full h-full object-cover" />
                                 ) : (
                                   rec.initials
                                 )}

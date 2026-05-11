@@ -41,12 +41,14 @@ export function Coach() {
   const { user, safeDailySpend, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction, pet } = useStore()
   const strings = t[language]
   const scrollRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isThinking, setIsThinking] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [isAtBottom, setIsAtBottom] = useState(true)
 
   // Affordability state
   const [affordItem, setAffordItem] = useState("")
@@ -60,15 +62,23 @@ export function Coach() {
   // Platform selection state for Finance Strategist
   const [selectedPlatform, setSelectedPlatform] = useState<number | null>(null)
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom whenever messages or thinking state changes
   useEffect(() => {
-    if (scrollRef.current) {
-      const scrollArea = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]')
-      if (scrollArea) {
-        scrollArea.scrollTop = scrollArea.scrollHeight
-      }
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isThinking])
+
+  // Track whether the user is near the bottom of the chat
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    setIsAtBottom(distFromBottom < 100)
+  }
+
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setIsAtBottom(true)
+  }
 
   const handleAction = async (action: ChatAction) => {
     if (isExecuting) return;
@@ -491,12 +501,32 @@ export function Coach() {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 scroll-smooth bg-transparent z-10"
-      >
-        <div className="space-y-6 py-6 min-h-full flex flex-col">
+      {/* Chat Area — wrapped in relative for the floating button */}
+      <div className="flex-1 overflow-hidden relative z-10">
+        {/* Scroll-to-bottom floating button */}
+        <AnimatePresence>
+          {!isAtBottom && (
+            <motion.button
+              key="scroll-btn"
+              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={scrollToBottom}
+              className="absolute bottom-4 right-4 z-30 w-9 h-9 rounded-full bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/20 active:scale-95 transition-colors"
+              aria-label="Scroll to bottom"
+            >
+              <ChevronLeft className="w-4 h-4 text-white rotate-[-90deg]" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto px-4 scroll-smooth bg-transparent"
+        >
+          <div className="space-y-6 py-6 min-h-full flex flex-col">
 
           <AnimatePresence mode="wait">
             {messages.length === 0 ? (
@@ -974,7 +1004,11 @@ export function Coach() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Bottom sentinel — auto-scroll target */}
+          <div ref={bottomRef} className="h-px" />
         </div>
+      </div>
       </div>
 
       {/* Sticky Chat Input Area — OUTSIDE the scroll container so it never disappears */}
