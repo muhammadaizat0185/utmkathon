@@ -375,13 +375,18 @@ const useStoreBase = create<ResilienceState>()(
     (set, get) => ({
       ...initialStoreState,
       addTransaction: (t, skipRoundUp = false) => {
+        const state = get();
+        const updatedBalance = state.user.currentBalance - (t.type === 'income' ? -t.amount : t.amount);
+        const daysLeft = getDaysRemaining(state);
+        const nextSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
+
         set((state) => {
           const nextTransactions = [t, ...state.transactions];
-          const updatedBalance = state.user.currentBalance - (t.type === 'income' ? -t.amount : t.amount);
-          
           return {
             transactions: nextTransactions,
-            user: { ...state.user, currentBalance: updatedBalance }
+            user: { ...state.user, currentBalance: updatedBalance },
+            safeDailySpend: nextSafeDaily,
+            initialSafeDaily: nextSafeDaily
           };
         });
         
@@ -391,13 +396,20 @@ const useStoreBase = create<ResilienceState>()(
         get().updateResilienceScore();
       },
       addSavingsPocket: (p) => {
+        const state = get();
+        const updatedBalance = state.user.currentBalance - p.current;
+        const daysLeft = getDaysRemaining(state);
+        const nextSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
+
         set((state) => {
           const cleanedPockets = p.isMainGoal
             ? state.savingsPockets.map(pocket => ({ ...pocket, isMainGoal: false }))
             : state.savingsPockets;
           return {
             savingsPockets: [...cleanedPockets, p],
-            user: { ...state.user, currentBalance: state.user.currentBalance - p.current }
+            user: { ...state.user, currentBalance: updatedBalance },
+            safeDailySpend: nextSafeDaily,
+            initialSafeDaily: nextSafeDaily
           };
         });
         get().updateResilienceScore();
@@ -416,12 +428,20 @@ const useStoreBase = create<ResilienceState>()(
         get().updateResilienceScore();
       },
       deleteSavingsPocket: (id) => {
+        const state = get();
+        const pocket = state.savingsPockets.find(p => p.id === id);
+        if (!pocket) return;
+        
+        const updatedBalance = state.user.currentBalance + pocket.current;
+        const daysLeft = getDaysRemaining(state);
+        const nextSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
+
         set((state) => {
-          const pocket = state.savingsPockets.find(p => p.id === id);
-          if (!pocket) return state;
           return {
             savingsPockets: state.savingsPockets.filter(p => p.id !== id),
-            user: { ...state.user, currentBalance: state.user.currentBalance + pocket.current }
+            user: { ...state.user, currentBalance: updatedBalance },
+            safeDailySpend: nextSafeDaily,
+            initialSafeDaily: nextSafeDaily
           };
         });
         get().updateResilienceScore();
@@ -454,6 +474,8 @@ const useStoreBase = create<ResilienceState>()(
             savingsPockets: nextPockets,
             transactions: [newTx, ...state.transactions],
             user: { ...state.user, currentBalance: state.user.currentBalance - amount },
+            safeDailySpend: safeDailyAfter,
+            initialSafeDaily: safeDailyAfter,
             pet: {
               message: `Nice save! Moving RM ${amount.toFixed(2)} to ${pocketName}. Your daily quota remains stable for today, and your Resilience Score is fully protected!`
             }

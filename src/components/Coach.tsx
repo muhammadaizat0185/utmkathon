@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { User, Shield, Brain, Target, TrendingUp, Send, ChevronLeft, ExternalLink, ShoppingBag, Store, Globe } from "lucide-react"
+import { User, Shield, Brain, Target, TrendingUp, Send, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, Store, Globe } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -38,7 +38,7 @@ interface Message {
 }
 
 export function Coach() {
-  const { user, safeDailySpend, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction, pet } = useStore()
+  const { user, safeDailySpend, initialSafeDaily, transactions, resilienceScore, language, addSavingsPocket, savingsPockets, bills, addTransaction, pet } = useStore()
   const strings = t[language]
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -58,6 +58,7 @@ export function Coach() {
 
   // Savings state
   const [saveDeposit, setSaveDeposit] = useState("200")
+  const [saveTarget, setSaveTarget] = useState("2500")
 
   // Platform selection state for Finance Strategist
   const [selectedPlatform, setSelectedPlatform] = useState<number | null>(null)
@@ -97,6 +98,7 @@ export function Coach() {
 
     let responseText = "";
     let redirect: { href: string; label: string } | undefined;
+    let proposal: any = undefined;
 
     switch (action.type) {
       case 'create_pocket':
@@ -125,6 +127,41 @@ export function Coach() {
         });
         responseText = `Success! I've initialized your ${action.payload.name} with RM ${depositVal}. You can track your progress in the Savings tab.`;
         redirect = { label: "Go to Savings", href: "/savings" };
+        break;
+      case 'add_funds':
+        try {
+          const oldState = useStore.getState();
+          const todayStr = new Date().toDateString();
+          const todayExpenses = oldState.transactions
+            .filter(t => (t.type === 'expense' || t.type === 'saving') && new Date(t.date).toDateString() === todayStr)
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          const oldBalance = oldState.user.currentBalance;
+          const oldQuota = oldState.initialSafeDaily - todayExpenses;
+          const oldSafeDaily = oldState.safeDailySpend;
+
+          useStore.getState().addFundsToPocket(action.payload.pocketId, action.payload.amount);
+          
+          const newState = useStore.getState();
+          // Force calculation of new safe daily average since addFundsToPocket doesn't update it immediately
+          const newSafeDaily = newState.calculateDailyLimitForBalance(newState.user.currentBalance);
+          const newQuota = newState.initialSafeDaily - todayExpenses; // For today, quota stays based on initial, but safeDaily average changes
+
+          responseText = `Successfully deposited RM ${action.payload.amount.toFixed(2)} into your pocket!`;
+          
+          proposal = {
+            type: 'deposit_summary',
+            amount: action.payload.amount,
+            before: { balance: oldBalance, quota: oldQuota, safeDaily: oldSafeDaily },
+            after: { balance: newState.user.currentBalance, quota: newQuota, safeDaily: newSafeDaily }
+          };
+
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "excited" } });
+          redirect = { label: "Go to Savings", href: "/savings" };
+        } catch (error: any) {
+          responseText = `Warning: ${error.message}`;
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "angry" } });
+        }
         break;
       case 'postpone':
         responseText = "Understood. I've moved this suggestion to the backlog. We'll revisit this when your cashflow improves.";
@@ -289,7 +326,8 @@ export function Coach() {
         role: 'assistant',
         agent: action.type === 'transfer' ? 'Finance Strategist' : 'Savings Sentinel',
         content: responseText,
-        redirect: redirect
+        redirect: redirect,
+        proposal: proposal
       }
     ]);
 
@@ -302,7 +340,24 @@ export function Coach() {
 
     const triggerFinance = textToSubmit.includes("spend") || textToSubmit.includes("safe") || textToSubmit.includes("limit") || textToSubmit.includes("daily") || textToSubmit.includes("budget") || textToSubmit.includes("money") || textToSubmit.includes("impulse")
     const triggerGrowth = textToSubmit.includes("invest") || textToSubmit.includes("stock") || textToSubmit.includes("crypto") || textToSubmit.includes("gold") || textToSubmit.includes("growth") || textToSubmit.includes("opportunity") || textToSubmit.includes("market")
-    const triggerSave = textToSubmit.includes("save") || textToSubmit.includes("goal") || textToSubmit.includes("fund") || textToSubmit.includes("laptop") || textToSubmit.includes("emergency")
+    const isListingPockets = textToSubmit.includes("show") || textToSubmit.includes("list") || textToSubmit.includes("what") || textToSubmit.includes("pockets") || textToSubmit.includes("my goals")
+    
+    // Add Funds Parsing
+    let isAddFundsTriggered = false;
+    let addFundsAmount = 0;
+    let targetPocket: any = null;
+    const addFundsMatch = textToSubmit.match(/(?:add|deposit|save|put)\s+(?:rm\s*)?(\d+(\.\d+)?)\s+(?:to|in|into)\s+(my\s+)?(.+)/i);
+    if (addFundsMatch) {
+      const amountStr = addFundsMatch[1];
+      const pocketStr = addFundsMatch[4].toLowerCase().replace("fund", "").replace("pocket", "").trim();
+      addFundsAmount = parseFloat(amountStr);
+      targetPocket = useStore.getState().savingsPockets.find(p => p.name.toLowerCase().includes(pocketStr));
+      if (targetPocket && addFundsAmount > 0) {
+         isAddFundsTriggered = true;
+      }
+    }
+
+    const triggerSave = textToSubmit.includes("save") || textToSubmit.includes("goal") || textToSubmit.includes("fund") || textToSubmit.includes("laptop") || textToSubmit.includes("emergency") || isListingPockets || isAddFundsTriggered
     const triggerDebt = textToSubmit.includes("debt") || textToSubmit.includes("bnpl") || textToSubmit.includes("loan") || textToSubmit.includes("risk") || textToSubmit.includes("credit") || textToSubmit.includes("afford") || textToSubmit.includes("buy")
     const triggerBills = textToSubmit.includes("bill") || textToSubmit.includes("rent") || textToSubmit.includes("autopay") || textToSubmit.includes("commitment") || textToSubmit.includes("lock") || textToSubmit.includes("protected")
     const triggerTransfer = textToSubmit.includes("transfer") || textToSubmit.includes("send") || (textToSubmit.includes("pay") && textToSubmit.includes("to"))
@@ -376,9 +431,45 @@ export function Coach() {
           agent: 'Finance Strategist',
           content: `You have RM ${lockedAmount.toFixed(2)} protected for bills. ${nextBill ? `Your next bill is ${nextBill.name} due soon.` : 'No upcoming bills detected.'} Protecting your bill money early is why your spendable balance might look lower than your total balance.`
         })
+      } else if (isAddFundsTriggered && targetPocket) {
+        if (addFundsAmount > user.currentBalance) {
+           responses.push({
+             role: 'assistant',
+             agent: 'Savings Sentinel',
+             content: `I can't deposit RM ${addFundsAmount.toFixed(2)} into your ${targetPocket.name} because it exceeds your current balance of RM ${user.currentBalance.toFixed(2)}.`
+           });
+        } else {
+           const todayStr = new Date().toDateString();
+           const todayExpenses = transactions
+             .filter(t => (t.type === 'expense' || t.type === 'saving') && new Date(t.date).toDateString() === todayStr)
+             .reduce((sum, t) => sum + t.amount, 0);
+           const currentQuota = initialSafeDaily - todayExpenses;
+
+           responses.push({
+             role: 'assistant',
+             agent: 'Savings Sentinel',
+             content: `Got it! I've prepared a quick deposit for your ${targetPocket.name}. \n\nCurrent spending balance: RM ${user.currentBalance.toFixed(2)}\nDaily quota remaining: ${currentQuota < 0 ? "-" : ""}RM ${Math.abs(currentQuota).toFixed(2)}\n\nReview the impact below before approving.`,
+             proposal: {
+               type: 'add_funds',
+               pocketId: targetPocket.id,
+               pocketName: targetPocket.name,
+               amount: addFundsAmount,
+               icon: targetPocket.icon
+             }
+           });
+        }
       } else if (triggerSave) {
-        // Priority: Always show a proposal if they are asking about a specific goal like Laptop
-        if (textToSubmit.includes("laptop") || user.currentBalance > 1000) {
+        // Handle listing pockets vs creating new ones
+        if (isListingPockets && savingsPockets.length > 0) {
+          responses.push({
+            role: 'assistant',
+            agent: 'Savings Sentinel',
+            content: `You currently have ${savingsPockets.length} active savings pockets. Here is your progress:\n\n*Tip: Try saying "Add RM 50 to ${savingsPockets[0]?.name || 'Goals'}" to save instantly!*`,
+            proposal: {
+              type: 'list_pockets'
+            }
+          })
+        } else if (textToSubmit.includes("laptop") || user.currentBalance > 1000) {
           responses.push({
             role: 'assistant',
             agent: 'Savings Sentinel',
@@ -630,7 +721,49 @@ export function Coach() {
                               animate={{ opacity: 1, scale: 1 }}
                               className="w-full max-w-[280px]"
                             >
-                              {m.proposal.type === 'affordability' ? (
+                              {m.proposal.type === 'list_pockets' ? (
+                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-3">
+                                    {savingsPockets.map((pocket) => (
+                                      <div key={pocket.id} className="p-3 rounded-2xl bg-white/5 border border-white/10 shadow-sm">
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                                            {pocket.icon}
+                                          </div>
+                                          <div className="flex-1">
+                                            <div className="flex justify-between items-center">
+                                              <h4 className="text-xs font-bold text-white">{pocket.name}</h4>
+                                              <span className="text-[10px] font-black text-emerald-500">
+                                                {Math.round((pocket.current / pocket.target) * 100)}%
+                                              </span>
+                                            </div>
+                                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">
+                                              RM {pocket.current.toFixed(0)} / RM {pocket.target.toFixed(0)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                          <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(pocket.current / pocket.target) * 100}%` }}
+                                            className="h-full bg-emerald-500"
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="pt-2">
+                                      <Button 
+                                        asChild
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black h-9 gap-2 shadow-lg shadow-emerald-500/20"
+                                      >
+                                        <Link href="/savings">
+                                          Manage Savings <ChevronRight className="w-3 h-3" />
+                                        </Link>
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ) : m.proposal.type === 'affordability' ? (
                                 <Card className="glass-card bg-slate-900/40 border-purple-500/20 overflow-hidden">
                                   <CardContent className="p-4 space-y-4">
                                     <div className="flex items-center gap-2 mb-2">
@@ -847,6 +980,100 @@ export function Coach() {
                                     </div>
                                   </CardContent>
                                 </Card>
+                              ) : m.proposal.type === 'deposit_summary' ? (
+                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                      </div>
+                                      <p className="text-[10px] font-black text-white uppercase tracking-widest">Impact Summary</p>
+                                    </div>
+                                    
+                                    <div className="rounded-xl bg-black/30 border border-white/5 overflow-hidden">
+                                      <table className="w-full text-[10px]">
+                                        <thead>
+                                          <tr className="text-left border-b border-white/10 bg-white/5">
+                                            <th className="p-2.5 font-bold text-muted-foreground">Metric</th>
+                                            <th className="p-2.5 font-bold text-muted-foreground text-right">Before</th>
+                                            <th className="p-2.5 font-bold text-muted-foreground text-right">After</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                          <tr>
+                                            <td className="p-2.5 text-white font-medium">Spending Bal.</td>
+                                            <td className="p-2.5 text-right text-muted-foreground">RM {(m.proposal.before?.balance || 0).toFixed(2)}</td>
+                                            <td className="p-2.5 text-right text-emerald-400 font-bold">RM {(m.proposal.after?.balance || 0).toFixed(2)}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="p-2.5 text-white font-medium">Daily Quota</td>
+                                            <td className="p-2.5 text-right text-muted-foreground">
+                                              {(m.proposal.before?.quota || 0) < 0 ? "-" : ""}RM {Math.abs(m.proposal.before?.quota || 0).toFixed(2)}
+                                            </td>
+                                            <td className={cn(
+                                              "p-2.5 text-right font-bold",
+                                              (m.proposal.after?.quota || 0) < 0 ? "text-rose-400" : "text-emerald-400"
+                                            )}>
+                                              {(m.proposal.after?.quota || 0) < 0 ? "-" : ""}RM {Math.abs(m.proposal.after?.quota || 0).toFixed(2)}
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <td className="p-2.5 text-white font-medium">Safe Daily (Avg)</td>
+                                            <td className="p-2.5 text-right text-muted-foreground">RM {(m.proposal.before?.safeDaily || 0).toFixed(2)}</td>
+                                            <td className="p-2.5 text-right text-emerald-400 font-bold">RM {(m.proposal.after?.safeDaily || 0).toFixed(2)}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+
+                                    <p className="text-[9px] text-center text-muted-foreground italic px-2">
+                                      Your daily spending power has been updated to reflect your new savings allocation.
+                                    </p>
+                                  </CardContent>
+                                </Card>
+                              ) : m.proposal.type === 'add_funds' ? (
+                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
+                                  <CardContent className="p-4 space-y-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                                        {m.proposal.icon}
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-xs font-bold text-white">Quick Deposit to {m.proposal.pocketName}</p>
+                                        <p className="text-[9px] text-emerald-500 font-bold">RM {m.proposal.amount.toFixed(2)}</p>
+                                      </div>
+                                      <Shield className="w-5 h-5 text-emerald-500/60" />
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                                        <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider">Resilience Check</span>
+                                        <Badge variant="outline" className="text-[8px] h-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-1">Score Protected</Badge>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                      <Button
+                                        className="flex-1 h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                        onClick={() => handleAction({
+                                          id: 'approve_add_funds',
+                                          label: 'Confirm Deposit',
+                                          type: 'add_funds',
+                                          payload: { pocketId: m.proposal.pocketId, amount: m.proposal.amount }
+                                        })}
+                                        disabled={isExecuting || i < messages.length - 1}
+                                      >
+                                        {isExecuting ? "Processing..." : "Confirm Deposit"}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1 h-8 text-[10px] border-white/10 text-white"
+                                        onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
+                                        disabled={isExecuting || i < messages.length - 1}
+                                      >
+                                        Decline
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
                               ) : m.proposal.type === 'create_pocket' ? (
                                 <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
                                   <CardContent className="p-4 space-y-4">
@@ -856,24 +1083,35 @@ export function Coach() {
                                       </div>
                                       <div className="flex-1">
                                         <p className="text-xs font-bold text-white">{m.proposal.name}</p>
-                                        <p className="text-[9px] text-muted-foreground">Target: RM {m.proposal.target}</p>
                                       </div>
                                       <Badge className="text-[7px] h-3 bg-emerald-500/20 text-emerald-500 border-emerald-500/20 px-1 font-black">
                                         {m.proposal.mode.toUpperCase()}
                                       </Badge>
                                     </div>
 
-                                    <div className="space-y-1.5">
-                                      <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
-                                      <Input
-                                        type="number"
-                                        value={m.proposal.current !== undefined ? m.proposal.current : (i === messages.length - 1 ? saveDeposit : "")}
-                                        onChange={(e) => setSaveDeposit(e.target.value)}
-                                        disabled={isExecuting || i < messages.length - 1}
-                                        className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
-                                      />
-                                      <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-1.5">
+                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Goal Target (RM)</label>
+                                        <Input
+                                          type="number"
+                                          value={i === messages.length - 1 ? saveTarget : m.proposal.target}
+                                          onChange={(e) => setSaveTarget(e.target.value)}
+                                          disabled={isExecuting || i < messages.length - 1}
+                                          className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                        />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
+                                        <Input
+                                          type="number"
+                                          value={i === messages.length - 1 ? saveDeposit : m.proposal.current}
+                                          onChange={(e) => setSaveDeposit(e.target.value)}
+                                          disabled={isExecuting || i < messages.length - 1}
+                                          className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                        />
+                                      </div>
                                     </div>
+                                    <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
 
                                     {i === messages.length - 1 && (
                                       <div className="flex gap-2">
@@ -883,7 +1121,11 @@ export function Coach() {
                                             id: 'approve_save',
                                             label: 'Approve & Deposit',
                                             type: 'create_pocket',
-                                            payload: { ...m.proposal, current: parseFloat(saveDeposit) || 0 }
+                                            payload: { 
+                                              ...m.proposal, 
+                                              target: parseFloat(saveTarget) || 2500,
+                                              current: parseFloat(saveDeposit) || 0 
+                                            }
                                           })}
                                           disabled={isExecuting}
                                         >
