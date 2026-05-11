@@ -349,8 +349,9 @@ export const initialStoreState = {
     message: 'Stay focused!',
     animation: "idle"
   },
-  lastGrowthSimulationDate: null,
   isRoundUpActive: true,
+  showSpendOnly: false,
+  hideBalance: false,
   bills: [],
   pendingMainGoal: null,
   hasNotificationSave: false,
@@ -374,6 +375,8 @@ const useStoreBase = create<ResilienceState>()(
   persist(
     (set, get) => ({
       ...initialStoreState,
+      setShowSpendOnly: (val) => set({ showSpendOnly: val }),
+      setHideBalance: (val) => set({ hideBalance: val }),
       addTransaction: (t, skipRoundUp = false) => {
         const state = get();
         const updatedBalance = state.user.currentBalance - (t.type === 'income' ? -t.amount : t.amount);

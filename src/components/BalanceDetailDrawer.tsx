@@ -24,12 +24,9 @@ interface BalanceDetailDrawerProps {
 }
 
 export function BalanceDetailDrawer({ open, onClose }: BalanceDetailDrawerProps) {
-  const { user, savingsPockets, language } = useStore()
+  const { user, savingsPockets, language, showSpendOnly, setShowSpendOnly, hideBalance, setHideBalance } = useStore()
   const bills = useStore(state => state.bills)
   const strings = t[language]
-
-  const [showSpendOnly, setShowSpendOnly] = useState(false)
-  const [hideAmount, setHideAmount] = useState(false)
 
   // Calculations
   const lockedForBills = bills
@@ -48,7 +45,7 @@ export function BalanceDetailDrawer({ open, onClose }: BalanceDetailDrawerProps)
   const spendableBalance = user.currentBalance - lockedForBills
 
   const displayBalance = showSpendOnly ? spendableBalance : totalAssets
-  const formatRM = (v: number) => hideAmount ? '••••••' : `RM ${v.toFixed(2)}`
+  const formatRM = (v: number) => hideBalance ? '••••••' : `RM ${v.toFixed(2)}`
 
   // Growth pockets with returns
   const growthPockets = savingsPockets.filter(p => p.mode === 'growth')
@@ -90,10 +87,10 @@ export function BalanceDetailDrawer({ open, onClose }: BalanceDetailDrawerProps)
                         {showSpendOnly ? 'Spendable Balance' : 'Total Assets'}
                       </span>
                       <button 
-                        onClick={() => setHideAmount(!hideAmount)}
+                        onClick={() => setHideBalance(!hideBalance)}
                         className="text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {hideAmount ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                     <motion.p

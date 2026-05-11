@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
-import { TrendingUp, AlertTriangle, ShieldCheck, Wallet, Calendar, Settings as SettingsIcon, QrCode, Send, History, CalendarClock, RefreshCw } from "lucide-react"
+import { TrendingUp, AlertTriangle, ShieldCheck, Wallet, Calendar, Settings as SettingsIcon, QrCode, Send, History, CalendarClock, RefreshCw, Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { SpendGuardModal } from "./BudgetGuardModal"
@@ -14,6 +14,7 @@ import { TopUpModal } from "./TopUpModal"
 import Link from "next/link"
 import { t } from "@/lib/translations"
 import { BalanceDetailDrawer } from "./BalanceDetailDrawer"
+import { Switch } from "@/components/ui/switch"
 
 export function Dashboard() {
   const {
@@ -27,7 +28,11 @@ export function Dashboard() {
     language,
     processAutoSave,
     simulateGrowth,
-    isSpendGuardActive
+    isSpendGuardActive,
+    showSpendOnly,
+    savingsPockets,
+    hideBalance,
+    setHideBalance
   } = useStore()
   const bills = useStore(state => state.bills)
 
@@ -35,6 +40,7 @@ export function Dashboard() {
     .filter(b => b.isLocked && b.status !== 'paid')
     .reduce((sum, b) => sum + b.amount, 0);
   const spendableBalance = user.currentBalance - lockedAmount;
+  const totalAssets = user.currentBalance + savingsPockets.reduce((sum, p) => sum + p.current, 0);
   const [showGuardModal, setShowGuardModal] = useState(false)
   const [showResilienceModal, setShowResilienceModal] = useState(false)
   const [showTopUpModal, setShowTopUpModal] = useState(false)
@@ -142,13 +148,27 @@ export function Dashboard() {
           className="cursor-pointer"
         >
           <Card className="glass-card hover:ring-primary/30 transition-all active:scale-[0.98]">
-            <CardHeader className="p-4 pb-0">
-              <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
-                <Wallet className="w-3 h-3" /> {strings.dashBalance}
+            <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-2">
+                <Wallet className="w-3 h-3" /> {showSpendOnly ? "Spendable" : "Total Assets"}
               </CardTitle>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHideBalance(!hideBalance);
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </CardHeader>
             <CardContent className="p-4">
-              <p className="text-xl font-bold">RM {user.currentBalance.toFixed(2)}</p>
+              <p className={cn(
+                "text-xl font-bold transition-colors duration-300",
+                showSpendOnly ? "text-emerald-500" : "text-foreground"
+              )}>
+                {hideBalance ? "••••••" : `RM ${(showSpendOnly ? spendableBalance : totalAssets).toFixed(2)}`}
+              </p>
               <p className="text-[10px] text-muted-foreground">{strings.dashNextIn} {getDaysRemaining()} {strings.dashDays}</p>
             </CardContent>
           </Card>
