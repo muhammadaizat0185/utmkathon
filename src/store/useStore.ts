@@ -194,16 +194,20 @@ interface ResilienceState {
   lastAutoSaveDate: string | null;
   pet: {
     message: string;
-    animation: string;
+    animation?: string;
   };
   lastGrowthSimulationDate: string | null;
   isRoundUpActive: boolean;
+  showSpendOnly: boolean;
+  hideBalance: boolean;
   bills: Bill[];
   pendingMainGoal: string | null;
   hasNotificationSave: boolean;
   lastQuotaUpdateDate: string | null;
   
   // Actions
+  setShowSpendOnly: (val: boolean) => void;
+  setHideBalance: (val: boolean) => void;
   addTransaction: (t: Transaction, skipRoundUp?: boolean) => void;
   addSavingsPocket: (p: SavingsPocket) => void;
   updateSavingsPocket: (id: string, updates: Partial<SavingsPocket>) => void;
@@ -349,6 +353,7 @@ export const initialStoreState = {
     message: 'Stay focused!',
     animation: "idle"
   },
+  lastGrowthSimulationDate: null,
   isRoundUpActive: true,
   showSpendOnly: false,
   hideBalance: false,
@@ -404,13 +409,32 @@ const useStoreBase = create<ResilienceState>()(
         const daysLeft = getDaysRemaining(state);
         const nextSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
 
+        if (p.current > 0 && nextSafeDaily < 10.0) {
+          throw new Error("Survival protocol active: Creating this pocket is blocked as the initial deposit reduces your daily spend below RM 10.00.");
+        }
+
         set((state) => {
           const cleanedPockets = p.isMainGoal
             ? state.savingsPockets.map(pocket => ({ ...pocket, isMainGoal: false }))
             : state.savingsPockets;
+          
+          const newTransactions = [...state.transactions];
+          if (p.current > 0) {
+            newTransactions.unshift({
+              id: `save-init-${Date.now()}`,
+              title: `Goal Start: ${p.name}`,
+              amount: p.current,
+              category: "Saving",
+              date: new Date().toISOString(),
+              type: "saving" as const,
+              confidence: 1.0
+            });
+          }
+
           return {
             savingsPockets: [...cleanedPockets, p],
             user: { ...state.user, currentBalance: updatedBalance },
+            transactions: newTransactions,
             safeDailySpend: nextSafeDaily,
             initialSafeDaily: nextSafeDaily
           };
@@ -440,9 +464,23 @@ const useStoreBase = create<ResilienceState>()(
         const nextSafeDaily = calculateDailyLimit(state, updatedBalance, daysLeft);
 
         set((state) => {
+          const newTransactions = [...state.transactions];
+          if (pocket.current > 0) {
+            newTransactions.unshift({
+              id: `save-reclaim-${Date.now()}`,
+              title: `Reclaimed from ${pocket.name}`,
+              amount: pocket.current,
+              category: "Income",
+              date: new Date().toISOString(),
+              type: "income" as const,
+              confidence: 1.0
+            });
+          }
+
           return {
             savingsPockets: state.savingsPockets.filter(p => p.id !== id),
             user: { ...state.user, currentBalance: updatedBalance },
+            transactions: newTransactions,
             safeDailySpend: nextSafeDaily,
             initialSafeDaily: nextSafeDaily
           };

@@ -51,7 +51,7 @@ export function Dashboard() {
   // Calculate today's spending & quota remaining
   const todayStr = new Date().toDateString()
   const todayExpenses = transactions
-    .filter(t => (t.type === 'expense' || t.type === 'saving') && new Date(t.date).toDateString() === todayStr)
+    .filter(t => t.type === 'expense' && new Date(t.date).toDateString() === todayStr)
     .reduce((sum, t) => sum + t.amount, 0)
   const quotaRemaining = initialSafeDaily - todayExpenses
 

@@ -24,7 +24,7 @@ const AGENTS = [
 interface ChatAction {
   id: string;
   label: string;
-  type: 'create_pocket' | 'postpone' | 'prioritize_emergency' | 'transfer' | 'simulate_affordability';
+  type: 'create_pocket' | 'postpone' | 'prioritize_emergency' | 'transfer' | 'simulate_affordability' | 'add_funds';
   payload?: any;
 }
 
@@ -102,38 +102,45 @@ export function Coach() {
 
     switch (action.type) {
       case 'create_pocket':
-        const depositVal = parseFloat(saveDeposit) || 0;
+        try {
+          const depositVal = parseFloat(saveDeposit) || 0;
 
-        // Preserve values in history
-        setMessages(prev => {
-          const next = [...prev];
-          for (let k = next.length - 1; k >= 0; k--) {
-            if (next[k].proposal?.type === 'create_pocket') {
-              next[k].proposal = { ...next[k].proposal, current: depositVal };
-              break;
+          addSavingsPocket({
+            id: Math.random().toString(36).substring(2, 11),
+            name: action.payload.name,
+            target: action.payload.target,
+            current: depositVal,
+            icon: action.payload.icon || '💰',
+            mode: action.payload.mode || 'savings',
+            riskLevel: action.payload.riskLevel
+          });
+
+          // Preserve values in history only after successful creation
+          setMessages(prev => {
+            const next = [...prev];
+            for (let k = next.length - 1; k >= 0; k--) {
+              if (next[k].proposal?.type === 'create_pocket') {
+                next[k].proposal = { ...next[k].proposal, current: depositVal };
+                break;
+              }
             }
-          }
-          return next;
-        });
+            return next;
+          });
 
-        addSavingsPocket({
-          id: Math.random().toString(36).substring(2, 11),
-          name: action.payload.name,
-          target: action.payload.target,
-          current: depositVal,
-          icon: action.payload.icon || '💰',
-          mode: action.payload.mode || 'savings',
-          riskLevel: action.payload.riskLevel
-        });
-        responseText = `Success! I've initialized your ${action.payload.name} with RM ${depositVal}. You can track your progress in the Savings tab.`;
-        redirect = { label: "Go to Savings", href: "/savings" };
+          responseText = `Success! I've initialized your ${action.payload.name} with RM ${depositVal}. You can track your progress in the Savings tab.`;
+          redirect = { label: "Go to Savings", href: "/savings" };
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "happy" } });
+        } catch (error: any) {
+          responseText = `Warning: ${error.message}`;
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "angry" } });
+        }
         break;
       case 'add_funds':
         try {
           const oldState = useStore.getState();
           const todayStr = new Date().toDateString();
           const todayExpenses = oldState.transactions
-            .filter(t => (t.type === 'expense' || t.type === 'saving') && new Date(t.date).toDateString() === todayStr)
+            .filter(t => t.type === 'expense' && new Date(t.date).toDateString() === todayStr)
             .reduce((sum, t) => sum + t.amount, 0);
 
           const oldBalance = oldState.user.currentBalance;
@@ -171,18 +178,31 @@ export function Coach() {
         redirect = { label: "Go to Savings", href: "/savings" };
         break;
       case 'transfer':
-        // Execute real transaction
-        addTransaction({
-          id: `txn-${Date.now()}`,
-          title: `Transfer to ${action.payload.recipient}`,
-          amount: action.payload.amount,
-          category: 'Transfer',
-          date: new Date().toISOString(),
-          type: 'expense',
-          confidence: 1.0
-        });
-        responseText = `Transfer complete. RM ${action.payload.amount} has been successfully sent to ${action.payload.recipient}. The transaction is now logged in your history.`;
-        redirect = { label: "View Transactions", href: "/transactions" };
+        try {
+          const oldState = useStore.getState();
+          const parsedAmount = parseFloat(action.payload.amount) || 0;
+          const nextSafeDaily = oldState.calculateDailyLimitForBalance(oldState.user.currentBalance - parsedAmount);
+
+          if (nextSafeDaily < 10.0) {
+            throw new Error(`Transfer blocked. Sending RM ${parsedAmount.toFixed(2)} would reduce your safe daily spending to RM ${nextSafeDaily.toFixed(2)}/day, which is below the RM 10.00 survival limit.`);
+          }
+
+          addTransaction({
+            id: `txn-${Date.now()}`,
+            title: `Transfer to ${action.payload.recipient}`,
+            amount: parsedAmount,
+            category: 'Transfer',
+            date: new Date().toISOString(),
+            type: 'expense',
+            confidence: 1.0
+          });
+          responseText = `Transfer complete. RM ${parsedAmount.toFixed(2)} has been successfully sent to ${action.payload.recipient}. The transaction is now logged in your history.`;
+          redirect = { label: "View Transactions", href: "/transactions" };
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "excited" } });
+        } catch (error: any) {
+          responseText = `Warning: ${error.message}`;
+          useStore.setState({ pet: { ...useStore.getState().pet, animation: "angry" } });
+        }
         break;
       case 'simulate_affordability':
         const item = affordItem || "this item";
@@ -440,9 +460,9 @@ export function Coach() {
            });
         } else {
            const todayStr = new Date().toDateString();
-           const todayExpenses = transactions
-             .filter(t => (t.type === 'expense' || t.type === 'saving') && new Date(t.date).toDateString() === todayStr)
-             .reduce((sum, t) => sum + t.amount, 0);
+            const todayExpenses = transactions
+              .filter(t => t.type === 'expense' && new Date(t.date).toDateString() === todayStr)
+              .reduce((sum, t) => sum + t.amount, 0);
            const currentQuota = initialSafeDaily - todayExpenses;
 
            responses.push({
@@ -752,14 +772,12 @@ export function Coach() {
                                       </div>
                                     ))}
                                     <div className="pt-2">
-                                      <Button 
-                                        asChild
-                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black h-9 gap-2 shadow-lg shadow-emerald-500/20"
+                                      <Link 
+                                        href="/savings"
+                                        className="inline-flex items-center justify-center w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black h-9 gap-2 shadow-lg shadow-emerald-500/20 transition-all text-center"
                                       >
-                                        <Link href="/savings">
-                                          Manage Savings <ChevronRight className="w-3 h-3" />
-                                        </Link>
-                                      </Button>
+                                        Manage Savings <ChevronRight className="w-3 h-3" />
+                                      </Link>
                                     </div>
                                   </CardContent>
                                 </Card>
@@ -1031,119 +1049,176 @@ export function Coach() {
                                     </p>
                                   </CardContent>
                                 </Card>
-                              ) : m.proposal.type === 'add_funds' ? (
-                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
-                                  <CardContent className="p-4 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
-                                        {m.proposal.icon}
-                                      </div>
-                                      <div className="flex-1">
-                                        <p className="text-xs font-bold text-white">Quick Deposit to {m.proposal.pocketName}</p>
-                                        <p className="text-[9px] text-emerald-500 font-bold">RM {m.proposal.amount.toFixed(2)}</p>
-                                      </div>
-                                      <Shield className="w-5 h-5 text-emerald-500/60" />
-                                    </div>
-                                    
-                                    <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
-                                        <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider">Resilience Check</span>
-                                        <Badge variant="outline" className="text-[8px] h-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-1">Score Protected</Badge>
-                                    </div>
+                              ) : m.proposal.type === 'add_funds' ? (() => {
+                                 const nextSafeDaily = useStore.getState().calculateDailyLimitForBalance(user.currentBalance - m.proposal.amount);
+                                 const isRestricted = m.proposal.amount > 0 && nextSafeDaily < 10.0;
 
-                                    <div className="flex gap-2">
-                                      <Button
-                                        className="flex-1 h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                                        onClick={() => handleAction({
-                                          id: 'approve_add_funds',
-                                          label: 'Confirm Deposit',
-                                          type: 'add_funds',
-                                          payload: { pocketId: m.proposal.pocketId, amount: m.proposal.amount }
-                                        })}
-                                        disabled={isExecuting || i < messages.length - 1}
-                                      >
-                                        {isExecuting ? "Processing..." : "Confirm Deposit"}
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        className="flex-1 h-8 text-[10px] border-white/10 text-white"
-                                        onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
-                                        disabled={isExecuting || i < messages.length - 1}
-                                      >
-                                        Decline
-                                      </Button>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ) : m.proposal.type === 'create_pocket' ? (
-                                <Card className="glass-card bg-slate-900/40 border-emerald-500/20 overflow-hidden">
-                                  <CardContent className="p-4 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
-                                        {m.proposal.icon}
-                                      </div>
-                                      <div className="flex-1">
-                                        <p className="text-xs font-bold text-white">{m.proposal.name}</p>
-                                      </div>
-                                      <Badge className="text-[7px] h-3 bg-emerald-500/20 text-emerald-500 border-emerald-500/20 px-1 font-black">
-                                        {m.proposal.mode.toUpperCase()}
-                                      </Badge>
-                                    </div>
+                                 return (
+                                   <Card className={cn(
+                                     "glass-card bg-slate-900/40 overflow-hidden",
+                                     isRestricted ? "border-rose-500/20" : "border-emerald-500/20"
+                                   )}>
+                                     <CardContent className="p-4 space-y-4">
+                                       <div className="flex items-center gap-3">
+                                         <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                                           {m.proposal.icon}
+                                         </div>
+                                         <div className="flex-1">
+                                           <p className="text-xs font-bold text-white">Quick Deposit to {m.proposal.pocketName}</p>
+                                           <p className="text-[9px] text-emerald-500 font-bold">RM {m.proposal.amount.toFixed(2)}</p>
+                                         </div>
+                                         <Shield className="w-5 h-5 text-emerald-500/60" />
+                                       </div>
+                                       
+                                       <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                                           <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider">Resilience Check</span>
+                                           <Badge 
+                                             variant="outline" 
+                                             className={cn(
+                                               "text-[8px] h-4 px-1 font-bold",
+                                               isRestricted 
+                                                 ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                                                 : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                             )}
+                                           >
+                                             {isRestricted ? "Risk Detected" : "Score Protected"}
+                                           </Badge>
+                                       </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div className="space-y-1.5">
-                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Goal Target (RM)</label>
-                                        <Input
-                                          type="number"
-                                          value={i === messages.length - 1 ? saveTarget : m.proposal.target}
-                                          onChange={(e) => setSaveTarget(e.target.value)}
-                                          disabled={isExecuting || i < messages.length - 1}
-                                          className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
-                                        />
-                                      </div>
-                                      <div className="space-y-1.5">
-                                        <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
-                                        <Input
-                                          type="number"
-                                          value={i === messages.length - 1 ? saveDeposit : m.proposal.current}
-                                          onChange={(e) => setSaveDeposit(e.target.value)}
-                                          disabled={isExecuting || i < messages.length - 1}
-                                          className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
-                                        />
-                                      </div>
-                                    </div>
-                                    <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
+                                       {isRestricted && (
+                                         <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-400 font-bold leading-tight space-y-1">
+                                           <p>🚨 Survival Threshold Restricted</p>
+                                           <p className="text-[9px] font-medium text-rose-400/80">
+                                             This deposit would drop your safe daily spend to RM {nextSafeDaily.toFixed(2)}/day, which is below the RM 10.00 survival limit.
+                                           </p>
+                                         </div>
+                                       )}
 
-                                    {i === messages.length - 1 && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          className="flex-1 h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                                          onClick={() => handleAction({
-                                            id: 'approve_save',
-                                            label: 'Approve & Deposit',
-                                            type: 'create_pocket',
-                                            payload: { 
-                                              ...m.proposal, 
-                                              target: parseFloat(saveTarget) || 2500,
-                                              current: parseFloat(saveDeposit) || 0 
-                                            }
-                                          })}
-                                          disabled={isExecuting}
-                                        >
-                                          {isExecuting ? "Processing..." : "Approve"}
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          className="flex-1 h-8 text-[10px] border-white/10 text-white"
-                                          onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
-                                          disabled={isExecuting}
-                                        >
-                                          Decline
-                                        </Button>
+                                       <div className="flex gap-2">
+                                         <Button
+                                           className={cn(
+                                             "flex-1 h-8 text-[10px] text-white font-bold",
+                                             isRestricted 
+                                               ? "bg-rose-900/50 hover:bg-rose-900/50 cursor-not-allowed text-white/50" 
+                                               : "bg-emerald-600 hover:bg-emerald-700"
+                                           )}
+                                           onClick={() => handleAction({
+                                             id: 'approve_add_funds',
+                                             label: 'Confirm Deposit',
+                                             type: 'add_funds',
+                                             payload: { pocketId: m.proposal.pocketId, amount: m.proposal.amount }
+                                           })}
+                                           disabled={isExecuting || isRestricted || i < messages.length - 1}
+                                         >
+                                           {isExecuting ? "Processing..." : "Confirm Deposit"}
+                                         </Button>
+                                         <Button
+                                           variant="outline"
+                                           className="flex-1 h-8 text-[10px] border-white/10 text-white"
+                                           onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
+                                           disabled={isExecuting || i < messages.length - 1}
+                                         >
+                                           Decline
+                                         </Button>
+                                       </div>
+                                     </CardContent>
+                                   </Card>
+                                 );
+                               })()
+                              : m.proposal.type === 'create_pocket' ? (() => {
+                                const currentDeposit = i === messages.length - 1 ? parseFloat(saveDeposit) || 0 : m.proposal.current || 0;
+                                const nextSafeDaily = useStore.getState().calculateDailyLimitForBalance(user.currentBalance - currentDeposit);
+                                const isRestricted = currentDeposit > 0 && nextSafeDaily < 10.0;
+
+                                return (
+                                  <Card className={cn(
+                                    "glass-card bg-slate-900/40 overflow-hidden",
+                                    isRestricted ? "border-rose-500/20" : "border-emerald-500/20"
+                                  )}>
+                                    <CardContent className="p-4 space-y-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                                          {m.proposal.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="text-xs font-bold text-white">{m.proposal.name}</p>
+                                        </div>
+                                        <Badge className="text-[7px] h-3 bg-emerald-500/20 text-emerald-500 border-emerald-500/20 px-1 font-black">
+                                          {m.proposal.mode.toUpperCase()}
+                                        </Badge>
                                       </div>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              ) : (
+
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                          <label className="text-[8px] uppercase font-bold text-muted-foreground">Goal Target (RM)</label>
+                                          <Input
+                                            type="number"
+                                            value={i === messages.length - 1 ? saveTarget : m.proposal.target}
+                                            onChange={(e) => setSaveTarget(e.target.value)}
+                                            disabled={isExecuting || i < messages.length - 1}
+                                            className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                          />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                          <label className="text-[8px] uppercase font-bold text-muted-foreground">Initial Deposit (RM)</label>
+                                          <Input
+                                            type="number"
+                                            value={i === messages.length - 1 ? saveDeposit : m.proposal.current}
+                                            onChange={(e) => setSaveDeposit(e.target.value)}
+                                            disabled={isExecuting || i < messages.length - 1}
+                                            className="h-10 text-sm bg-white/15 border-white/25 !text-white placeholder:text-white/40 disabled:!opacity-70"
+                                          />
+                                        </div>
+                                      </div>
+                                      <p className="text-[7px] text-muted-foreground italic">Deducted from your RM {user.currentBalance.toFixed(2)} balance</p>
+
+                                      {isRestricted && (
+                                        <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-400 font-bold leading-tight space-y-1">
+                                          <p>🚨 Survival Threshold Restricted</p>
+                                          <p className="text-[9px] font-medium text-rose-400/80">
+                                            Depositing RM {currentDeposit.toFixed(2)} would reduce your safe daily spend to RM {nextSafeDaily.toFixed(2)}/day, which is below the RM 10.00 survival limit.
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {i === messages.length - 1 && (
+                                        <div className="flex gap-2">
+                                          <Button
+                                            className={cn(
+                                              "flex-1 h-8 text-[10px] text-white font-bold",
+                                              isRestricted 
+                                                ? "bg-rose-900/50 hover:bg-rose-900/50 cursor-not-allowed text-white/50" 
+                                                : "bg-emerald-600 hover:bg-emerald-700"
+                                            )}
+                                            onClick={() => handleAction({
+                                              id: 'approve_save',
+                                              label: 'Approve & Deposit',
+                                              type: 'create_pocket',
+                                              payload: { 
+                                                ...m.proposal, 
+                                                target: parseFloat(saveTarget) || 2500,
+                                                current: currentDeposit 
+                                              }
+                                            })}
+                                            disabled={isExecuting || isRestricted}
+                                          >
+                                            {isExecuting ? "Processing..." : "Approve"}
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            className="flex-1 h-8 text-[10px] border-white/10 text-white"
+                                            onClick={() => handleAction({ id: 'decline_save', label: 'Decline', type: 'postpone' })}
+                                            disabled={isExecuting}
+                                          >
+                                            Decline
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })()
+                              : (
                                 <Card className="glass-card bg-slate-900/40 border-primary/20 overflow-hidden">
                                   <CardContent className="p-4 space-y-3">
                                     <div className="flex items-center gap-3">

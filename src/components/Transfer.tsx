@@ -31,7 +31,7 @@ const QUICK_AMOUNTS = [5, 10, 20, 50]
 
 export function Transfer() {
   const router = useRouter()
-  const { user, addTransaction, safeDailySpend } = useStore()
+  const { user, addTransaction, safeDailySpend, calculateDailyLimitForBalance } = useStore()
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""
   const [amount, setAmount] = useState("")
   const [reference, setReference] = useState("")
@@ -50,6 +50,9 @@ export function Transfer() {
   const hasInsufficientBalance = !isNaN(numAmount) && numAmount > user.currentBalance
   const remainingBalance = validAmount ? user.currentBalance - numAmount : user.currentBalance
   
+  const safeDailyAfter = validAmount && !hasInsufficientBalance ? calculateDailyLimitForBalance(user.currentBalance - numAmount) : 0
+  const isSurvivalRestricted = validAmount && !hasInsufficientBalance && safeDailyAfter < 10.0
+  
   const prediction = validAmount && !hasInsufficientBalance
     ? numAmount > safeDailySpend * 3
       ? `Sending RM ${numAmount.toFixed(2)} will move your Broke Date 4 days earlier. Consider splitting this into smaller transfers.`
@@ -65,6 +68,9 @@ export function Transfer() {
       : selectedRecipient
 
     if (!finalAmount || isNaN(finalAmount) || finalAmount > user.currentBalance) return
+    
+    const postLimit = calculateDailyLimitForBalance(user.currentBalance - finalAmount)
+    if (postLimit < 10.0) return
     
     setIsProcessing(true)
     setTimeout(() => {
@@ -342,6 +348,28 @@ export function Transfer() {
 
         {/* AI Interception Alerts */}
         <AnimatePresence>
+          {isSurvivalRestricted && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, scale: 0.97 }}
+              animate={{ opacity: 1, height: "auto", scale: 1 }}
+              exit={{ opacity: 0, height: 0, scale: 0.97 }}
+              className="overflow-hidden"
+            >
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-rose-500">🚨 Survival Threshold Blocked</p>
+                  <p className="text-[11px] text-rose-500/70 leading-relaxed">
+                    This transfer would drop your daily safe spending limit to <span className="font-bold text-rose-400">RM {safeDailyAfter.toFixed(2)}/day</span>, which is below the minimum survival limit of <span className="font-bold">RM 10.00/day</span>.
+                  </p>
+                  <p className="text-[11px] font-semibold text-rose-400">
+                    Transaction restricted: Please lower the transfer amount to ensure you have enough daily funds to survive!
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {hasInsufficientBalance && (
             <motion.div 
               initial={{ opacity: 0, height: 0, scale: 0.97 }}
@@ -547,10 +575,10 @@ export function Transfer() {
         <div className="max-w-lg mx-auto">
           <Button 
             onClick={() => handleTransfer()}
-            disabled={!validAmount || isProcessing || hasInsufficientBalance}
+            disabled={!validAmount || isProcessing || hasInsufficientBalance || isSurvivalRestricted}
             className={cn(
               "w-full h-14 font-black rounded-2xl shadow-xl flex gap-2 justify-center items-center transition-all active:scale-[0.97] text-sm",
-              hasInsufficientBalance 
+              hasInsufficientBalance || isSurvivalRestricted
                 ? "bg-rose-500/80 text-white cursor-not-allowed" 
                 : validAmount
                   ? "bg-primary hover:bg-primary/90 text-white shadow-primary/25"
@@ -564,6 +592,8 @@ export function Transfer() {
               </span>
             ) : hasInsufficientBalance ? (
               "Insufficient Balance"
+            ) : isSurvivalRestricted ? (
+              "Survival Limit Restricted"
             ) : validAmount ? (
               <>
                 Send RM {numAmount.toFixed(2)}
